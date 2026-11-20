@@ -1,0 +1,26 @@
+{
+  "name": "antigravity-flow",
+  "version": "1.0.0-gen1",
+  "description": "Gen-1 n8n-style automation system: Antigravity (Brain) + Hostinger (Core Memory & 24/7 Engine) + Google Drive (Storage Drive) + GitHub (GitOps & 24/7 Actions).",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs",
+    "cli": "node src/cli.mjs",
+    "test": "node --test test/*.test.mjs",
+    "validate": "node src/cli.mjs workflows validate",
+    "run:github-workflows": "node src/cli.mjs workflows run-scheduled --runner github"
+  },
+  "keywords": [
+    "automation",
+    "workflow-engine",
+    "n8n",
+    "hostinger",
+    "google-drive",
+    "github-actions",
+    "antigravity"
+  ]
+}

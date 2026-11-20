@@ -1,0 +1,53 @@
+name: Auto-Deploy to Hostinger VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'workflows/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if Hostinger SSH secrets are configured
+        id: check
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+        run: |
+          if [ -n "$HOSTINGER_HOST" ] && [ -n "$HOSTINGER_USER" ] && [ -n "$HOSTINGER_SSH_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Hostinger SSH secrets not yet configured — skipping remote deploy cleanly."
+          fi
+
+      - name: Deploy latest main branch to Hostinger VPS
+        if: steps.check.outputs.ready == 'true'
+        env:
+          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+          HOSTINGER_PORT: ${{ secrets.HOSTINGER_PORT || '22' }}
+          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+          HOSTINGER_SSH_KEY: ${{ secrets.HOSTINGER_SSH_KEY }}
+          HOSTINGER_APP_DIR: ${{ secrets.HOSTINGER_APP_DIR || '~/antigravity-flow' }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$HOSTINGER_SSH_KEY" > ~/.ssh/hostinger_key
+          chmod 600 ~/.ssh/hostinger_key
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/hostinger_key -p "$HOSTINGER_PORT" \
+            "$HOSTINGER_USER@$HOSTINGER_HOST" \
+            "set -e
+             if [ ! -d $HOSTINGER_APP_DIR ]; then
+               git clone https://github.com/${{ github.repository }}.git $HOSTINGER_APP_DIR
+             fi
+             cd $HOSTINGER_APP_DIR
+             git pull origin main
+             docker compose up -d --build
+            "

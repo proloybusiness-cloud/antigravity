@@ -1,0 +1,17 @@
+# Runtime data (Hostinger Core Memory SQLite DB & local Drive sandbox)
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Environment secrets
+.env
+.env.local
+*.pem
+service-account.json
+
+# OS & Editor
+.DS_Store
+node_modules/
+logs/
+*.log

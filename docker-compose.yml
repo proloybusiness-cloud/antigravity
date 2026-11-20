@@ -1,0 +1,15 @@
+services:
+  antigravity-flow:
+    build: .
+    container_name: antigravity-flow-gen1
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3777}:3777"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      # Hostinger Core Memory (SQLite) persists across container rebuilds
+      - ./data:/app/data
+      # Live-synced GitOps workflow blueprints
+      - ./workflows:/app/workflows

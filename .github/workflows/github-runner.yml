@@ -1,0 +1,46 @@
+name: 24/7 GitHub Workflow Runner
+
+on:
+  schedule:
+    # Runs automatically every day at 09:00 UTC (24/7 on GitHub servers)
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      workflow_id:
+        description: 'Optional specific workflow ID to run (leave blank to run all github/both workflows)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run-automations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Run workflow(s)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GDRIVE_MODE: auto
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          BRAIN_API_KEY: ${{ secrets.BRAIN_API_KEY }}
+        run: |
+          if [ -n "${{ github.event.inputs.workflow_id }}" ]; then
+            node src/cli.mjs workflows run "${{ github.event.inputs.workflow_id }}"
+          else
+            npm run run:github-workflows
+          fi

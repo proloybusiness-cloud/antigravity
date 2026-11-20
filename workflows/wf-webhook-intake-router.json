@@ -1,0 +1,127 @@
+{
+  "id": "wf-webhook-intake-router",
+  "name": "Smart Webhook Intake -> Memory & Drive Router",
+  "description": "Receives incoming webhook tasks/events, logs them in Hostinger Core Memory, and branches: high-priority items are summarized by the Brain and archived to Google Drive; normal items stay lightweight in Core Memory.",
+  "runner": "hostinger",
+  "enabled": true,
+  "nodes": [
+    {
+      "id": "trig_webhook",
+      "name": "Webhook Intake",
+      "type": "trigger.webhook",
+      "position": { "x": 40, "y": 150 },
+      "config": {
+        "samplePayload": {
+          "title": "Customer Launch Checklist",
+          "priority": "high",
+          "owner": "antigravity",
+          "notes": "Verify Hostinger core memory sync and Drive archive pipeline."
+        }
+      }
+    },
+    {
+      "id": "save_intake",
+      "name": "Log Event to Core Memory",
+      "type": "memory.write",
+      "position": { "x": 280, "y": 150 },
+      "config": {
+        "namespace": "intake",
+        "key": "latest_event",
+        "mode": "set",
+        "value": {
+          "runId": "{{ $runId }}",
+          "title": "{{ $trigger.payload.title ?? 'Untitled Intake Event' }}",
+          "priority": "{{ $trigger.payload.priority ?? 'normal' }}",
+          "owner": "{{ $trigger.payload.owner ?? 'unassigned' }}",
+          "notes": "{{ $trigger.payload.notes ?? '' }}",
+          "receivedAt": "{{ $now }}"
+        },
+        "tags": ["intake", "webhook"],
+        "summary": "Most recent incoming webhook payload"
+      }
+    },
+    {
+      "id": "check_priority",
+      "name": "Priority == High?",
+      "type": "logic.condition",
+      "position": { "x": 520, "y": 150 },
+      "config": {
+        "left": "{{ $trigger.payload.priority ?? 'normal' }}",
+        "operator": "eq",
+        "right": "high"
+      }
+    },
+    {
+      "id": "brain_brief",
+      "name": "Brain Write Brief",
+      "type": "brain.summarize",
+      "position": { "x": 780, "y": 60 },
+      "config": {
+        "title": "High-Priority Brief: {{ $trigger.payload.title ?? 'Event' }}",
+        "prompt": "Create a concise action brief for this high-priority intake event.",
+        "input": "{{ $nodes.save_intake.output.value }}"
+      }
+    },
+    {
+      "id": "archive_drive",
+      "name": "Archive Brief to Drive",
+      "type": "gdrive.upload",
+      "position": { "x": 1030, "y": 60 },
+      "config": {
+        "name": "reports/intake-{{ $runId }}.md",
+        "mimeType": "text/markdown",
+        "content": "{{ $nodes.brain_brief.output.markdown }}",
+        "overwrite": true
+      }
+    },
+    {
+      "id": "mark_archived",
+      "name": "Record Archive Index",
+      "type": "memory.write",
+      "position": { "x": 1270, "y": 60 },
+      "config": {
+        "namespace": "intake",
+        "key": "archived_reports",
+        "mode": "append",
+        "maxItems": 50,
+        "value": {
+          "runId": "{{ $runId }}",
+          "title": "{{ $trigger.payload.title ?? 'Event' }}",
+          "driveFileId": "{{ $nodes.archive_drive.output.id }}",
+          "drivePath": "{{ $nodes.archive_drive.output.name }}",
+          "archivedAt": "{{ $now }}"
+        },
+        "tags": ["intake", "archive", "high-priority"],
+        "summary": "Index of high-priority briefs archived in Google Drive"
+      }
+    },
+    {
+      "id": "log_normal",
+      "name": "Queue Standard Task",
+      "type": "memory.write",
+      "position": { "x": 780, "y": 250 },
+      "config": {
+        "namespace": "intake",
+        "key": "standard_queue",
+        "mode": "append",
+        "maxItems": 50,
+        "value": {
+          "runId": "{{ $runId }}",
+          "title": "{{ $trigger.payload.title ?? 'Standard Task' }}",
+          "priority": "{{ $trigger.payload.priority ?? 'normal' }}",
+          "queuedAt": "{{ $now }}"
+        },
+        "tags": ["intake", "standard"],
+        "summary": "Standard-priority events held in Hostinger Core Memory"
+      }
+    }
+  ],
+  "edges": [
+    { "from": "trig_webhook", "to": "save_intake" },
+    { "from": "save_intake", "to": "check_priority" },
+    { "from": "check_priority", "to": "brain_brief", "when": "true" },
+    { "from": "brain_brief", "to": "archive_drive" },
+    { "from": "archive_drive", "to": "mark_archived" },
+    { "from": "check_priority", "to": "log_normal", "when": "false" }
+  ]
+}

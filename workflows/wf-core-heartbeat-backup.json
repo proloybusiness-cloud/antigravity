@@ -1,0 +1,93 @@
+{
+  "id": "wf-core-heartbeat-backup",
+  "name": "Core Memory Snapshot -> Drive Backup",
+  "description": "Increments the Hostinger Core Memory heartbeat counter, exports a full JSON snapshot of Core Memory, uploads it to Google Drive, and records the backup receipt back into Core Memory.",
+  "runner": "hostinger",
+  "enabled": true,
+  "nodes": [
+    {
+      "id": "trig_cron",
+      "name": "Every 6 Hours",
+      "type": "trigger.cron",
+      "position": { "x": 40, "y": 140 },
+      "config": {
+        "schedule": "0 */6 * * *"
+      }
+    },
+    {
+      "id": "inc_heartbeat",
+      "name": "Increment Heartbeat",
+      "type": "memory.write",
+      "position": { "x": 280, "y": 140 },
+      "config": {
+        "namespace": "system",
+        "key": "heartbeat_count",
+        "mode": "increment",
+        "delta": 1,
+        "tags": ["system", "heartbeat"],
+        "summary": "Total automated backup heartbeats completed"
+      }
+    },
+    {
+      "id": "snap_memory",
+      "name": "Export Core Memory",
+      "type": "memory.snapshot",
+      "position": { "x": 520, "y": 140 },
+      "config": {}
+    },
+    {
+      "id": "build_manifest",
+      "name": "Wrap Backup Manifest",
+      "type": "logic.transform",
+      "position": { "x": 760, "y": 140 },
+      "config": {
+        "output": {
+          "runId": "{{ $runId }}",
+          "heartbeat": "{{ $nodes.inc_heartbeat.output.value }}",
+          "backedUpAt": "{{ $now }}",
+          "snapshot": "{{ $nodes.snap_memory.output }}"
+        }
+      }
+    },
+    {
+      "id": "upload_drive",
+      "name": "Upload to Google Drive",
+      "type": "gdrive.upload",
+      "position": { "x": 1000, "y": 140 },
+      "config": {
+        "name": "backups/core-memory-latest.json",
+        "mimeType": "application/json",
+        "content": "{{ $nodes.build_manifest.output }}",
+        "overwrite": true
+      }
+    },
+    {
+      "id": "record_receipt",
+      "name": "Save Backup Receipt",
+      "type": "memory.write",
+      "position": { "x": 1240, "y": 140 },
+      "config": {
+        "namespace": "backups",
+        "key": "last_drive_backup",
+        "mode": "set",
+        "value": {
+          "fileId": "{{ $nodes.upload_drive.output.id }}",
+          "fileName": "{{ $nodes.upload_drive.output.name }}",
+          "sizeBytes": "{{ $nodes.upload_drive.output.size }}",
+          "storage": "{{ $nodes.upload_drive.output.storage }}",
+          "heartbeat": "{{ $nodes.inc_heartbeat.output.value }}",
+          "at": "{{ $now }}"
+        },
+        "tags": ["backup", "gdrive"],
+        "summary": "Receipt of the latest Core Memory backup stored in Drive"
+      }
+    }
+  ],
+  "edges": [
+    { "from": "trig_cron", "to": "inc_heartbeat" },
+    { "from": "inc_heartbeat", "to": "snap_memory" },
+    { "from": "snap_memory", "to": "build_manifest" },
+    { "from": "build_manifest", "to": "upload_drive" },
+    { "from": "upload_drive", "to": "record_receipt" }
+  ]
+}

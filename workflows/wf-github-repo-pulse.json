@@ -1,0 +1,77 @@
+{
+  "id": "wf-github-repo-pulse",
+  "name": "GitHub Repo Pulse -> Memory & Drive Digest",
+  "description": "Runs 24/7 via GitHub Actions or Hostinger: checks the GitHub repository's latest commits and open issues, builds a Brain digest, updates Core Memory, and saves the daily report to Google Drive.",
+  "runner": "both",
+  "enabled": true,
+  "nodes": [
+    {
+      "id": "trig_daily",
+      "name": "Daily Pulse (09:00 UTC)",
+      "type": "trigger.cron",
+      "position": { "x": 40, "y": 140 },
+      "config": {
+        "schedule": "0 9 * * *"
+      }
+    },
+    {
+      "id": "fetch_github",
+      "name": "Fetch GitHub Repo Pulse",
+      "type": "github.api",
+      "position": { "x": 290, "y": 140 },
+      "config": {
+        "action": "repo_summary",
+        "repository": "proloybusiness-cloud/antigravity",
+        "allowOfflineFallback": true
+      }
+    },
+    {
+      "id": "summarize_pulse",
+      "name": "Brain Build Digest",
+      "type": "brain.summarize",
+      "position": { "x": 540, "y": 140 },
+      "config": {
+        "title": "GitHub Pulse Report ({{ $date }})",
+        "prompt": "Summarize recent repository commits and open issues into a crisp status report.",
+        "input": "{{ $nodes.fetch_github.output }}"
+      }
+    },
+    {
+      "id": "store_pulse",
+      "name": "Update Core Memory",
+      "type": "memory.write",
+      "position": { "x": 790, "y": 140 },
+      "config": {
+        "namespace": "github",
+        "key": "latest_repo_pulse",
+        "mode": "set",
+        "value": {
+          "repository": "{{ $nodes.fetch_github.output.repository }}",
+          "live": "{{ $nodes.fetch_github.output.live }}",
+          "openIssuesCount": "{{ $nodes.fetch_github.output.openIssuesCount ?? 0 }}",
+          "checkedAt": "{{ $now }}"
+        },
+        "tags": ["github", "pulse"],
+        "summary": "Latest GitHub repository health snapshot"
+      }
+    },
+    {
+      "id": "save_digest_drive",
+      "name": "Save Digest to Drive",
+      "type": "gdrive.upload",
+      "position": { "x": 1040, "y": 140 },
+      "config": {
+        "name": "reports/github-pulse-latest.md",
+        "mimeType": "text/markdown",
+        "content": "{{ $nodes.summarize_pulse.output.markdown }}",
+        "overwrite": true
+      }
+    }
+  ],
+  "edges": [
+    { "from": "trig_daily", "to": "fetch_github" },
+    { "from": "fetch_github", "to": "summarize_pulse" },
+    { "from": "summarize_pulse", "to": "store_pulse" },
+    { "from": "store_pulse", "to": "save_digest_drive" }
+  ]
+}
