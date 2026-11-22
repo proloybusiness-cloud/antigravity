@@ -1156,10 +1156,10 @@ describe('SM-1 Suite 4: Apple Mach-O/Fat/IPA/App/DMG/PKG & Universal WASM extern
     await fs.writeFile(pX64Fw, x64Fw);
     const odX64Fw = await runOracle('llvm-objdump', ['--macho', '--private-headers', '-d', pX64Fw]);
     assert.equal(odX64Fw.code, 0, odX64Fw.stderr);
-    assert.match(odX64Fw.stdout, /33554437/); // 0x2000005 SYS_open
-    assert.match(odX64Fw.stdout, /33554436/); // 0x2000004 SYS_write
-    assert.match(odX64Fw.stdout, /33554438/); // 0x2000006 SYS_close
-    assert.match(odX64Fw.stdout, /33554433/); // 0x2000001 SYS_exit
+    assert.match(odX64Fw.stdout, /(?:33554437|0x2000005)/i); // 0x2000005 SYS_open
+    assert.match(odX64Fw.stdout, /(?:33554436|0x2000004)/i); // 0x2000004 SYS_write
+    assert.match(odX64Fw.stdout, /(?:33554438|0x2000006)/i); // 0x2000006 SYS_close
+    assert.match(odX64Fw.stdout, /(?:33554433|0x2000001)/i); // 0x2000001 SYS_exit
     assert.ok(odX64Fw.stdout.includes(x64FilePath), `x86-64 disassembly missing literal pool path: ${odX64Fw.stdout}`);
     assert.ok(odX64Fw.stdout.includes(x64FileContent), `x86-64 disassembly missing literal pool content: ${odX64Fw.stdout}`);
 

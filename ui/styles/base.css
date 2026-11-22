@@ -4443,6 +4443,50 @@ button:disabled {
   word-break: break-word;
 }
 
+/* ==================== POTATO-PC / LITE PERFORMANCE MODE ==================== */
+#omni-shell[data-perf="lite"],
+#omni-shell[data-perf="lite"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+#omni-shell[data-perf="lite"] {
+  --blur-glass: none;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.3);
+  --shadow-window: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+#omni-shell[data-perf="lite"] .omni-wallpaper {
+  background: var(--bg-base, #0b1120) !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+#omni-shell[data-perf="lite"] .omni-window,
+#omni-shell[data-perf="lite"] .ios-control-center,
+#omni-shell[data-perf="lite"] .win-start-menu,
+#omni-shell[data-perf="lite"] .android-shade,
+#omni-shell[data-perf="lite"] .spotlight-dialog,
+#omni-shell[data-perf="lite"] .modal-card {
+  box-shadow: var(--shadow-md) !important;
+}
+
+@media (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {
+  #omni-shell:not([data-perf="standard"]) *,
+  #omni-shell:not([data-perf="standard"]) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 .notif-meta {
   font-size: 10.5px;
   font-family: var(--font-mono);

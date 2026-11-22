@@ -191,6 +191,7 @@ export class ShellModeController {
     return {
       shellMode: this._shellMode,
       chromeMode: this._chromeMode,
+      perfMode: this._perfMode || 'standard',
       systemConfig: { ...this._systemConfig },
       systemAppsCount: this._systemApps.length,
       installedPackagesCount: this._packages.length,
@@ -203,6 +204,9 @@ export class ShellModeController {
   }
 
   setHydrated(hydrated) {
+    if (hydrated) {
+      this.initPerfMode();
+    }
     if (this._dom.shell) {
       this._dom.shell.setAttribute('data-hydrated', hydrated ? 'true' : 'false');
     }
@@ -418,6 +422,114 @@ export class ShellModeController {
       );
     }
     this._compositorUI?.setChromeMode(this._chromeMode);
+  }
+
+  initPerfMode({ serverLiteMode } = {}) {
+    if (!this._perfMode) {
+      let mode = 'standard';
+      let hasExplicitPref = false;
+      if (typeof window !== 'undefined') {
+        try {
+          const params = new URLSearchParams(window.location?.search || '');
+          const qLite = params.get('lite') ?? params.get('perf');
+          if (qLite === '1' || qLite === 'true' || qLite === 'lite') {
+            mode = 'lite';
+            hasExplicitPref = true;
+          } else if (qLite === '0' || qLite === 'false' || qLite === 'standard' || qLite === 'full') {
+            mode = 'standard';
+            hasExplicitPref = true;
+          }
+        } catch {
+          // ignore invalid URL search params
+        }
+
+        if (!hasExplicitPref) {
+          try {
+            const saved = window.localStorage?.getItem('omnios.perfMode');
+            if (saved === 'lite' || saved === 'standard') {
+              mode = saved;
+              hasExplicitPref = true;
+            }
+          } catch {
+            // ignore storage errors
+          }
+        }
+
+        if (!hasExplicitPref) {
+          if (serverLiteMode === true) {
+            mode = 'lite';
+          } else {
+            const reducedMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+            const reducedTransparency = Boolean(
+              window.matchMedia?.('(prefers-reduced-transparency: reduce)')?.matches
+            );
+            const lowRam =
+              typeof navigator !== 'undefined' &&
+              typeof navigator.deviceMemory === 'number' &&
+              navigator.deviceMemory > 0 &&
+              navigator.deviceMemory <= 2;
+            if (reducedMotion || reducedTransparency || lowRam) {
+              mode = 'lite';
+            }
+          }
+        }
+      }
+      this.setPerfMode(mode, { persist: false });
+
+      if (!hasExplicitPref && mode === 'standard' && typeof window !== 'undefined' && typeof fetch === 'function') {
+        fetch('/api/health')
+          .then((r) => (r && r.ok ? r.json() : null))
+          .then((health) => {
+            if (health?.liteMode === true && !this._perfUserToggled) {
+              this.setPerfMode('lite', { persist: false });
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
+    if (!this._perfBound && typeof document !== 'undefined') {
+      this._perfBound = true;
+      const buttons = document.querySelectorAll('[data-perf-toggle]');
+      for (const btn of buttons) {
+        btn.addEventListener('click', () => {
+          this.togglePerfMode();
+        });
+      }
+    }
+  }
+
+  setPerfMode(mode, { persist = false } = {}) {
+    const normalized = mode === 'lite' ? 'lite' : 'standard';
+    this._perfMode = normalized;
+    if (this._dom.shell) {
+      this._dom.shell.setAttribute('data-perf', normalized);
+      this._dom.shell.setAttribute('data-lite-mode', normalized === 'lite' ? 'true' : 'false');
+    }
+    if (typeof document !== 'undefined') {
+      const buttons = document.querySelectorAll('[data-perf-toggle]');
+      for (const btn of buttons) {
+        const active = normalized === 'lite';
+        btn.setAttribute('data-active', active ? 'true' : 'false');
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        btn.classList.toggle('is-active', active);
+        btn.textContent = active ? 'Lite Mode: ON (Low RAM / No Blur)' : 'Lite Mode (Low RAM / No Blur)';
+      }
+    }
+    if (persist && typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem('omnios.perfMode', normalized);
+      } catch {
+        // ignore storage errors
+      }
+    }
+    return normalized;
+  }
+
+  togglePerfMode() {
+    this._perfUserToggled = true;
+    const next = this._perfMode === 'lite' ? 'standard' : 'lite';
+    return this.setPerfMode(next, { persist: true });
   }
 
   // ---- Compositor State Sync ----

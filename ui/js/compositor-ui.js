@@ -621,7 +621,19 @@ export class CompositorUI {
 
       const detectSnapZone = (clientX, clientY) => {
         if (!this._layerEl) return null;
-        const rect = this._layerEl.getBoundingClientRect();
+        if (!this._layerRectResizeBound && typeof window !== 'undefined') {
+          this._layerRectResizeBound = true;
+          window.addEventListener('resize', () => {
+            this._layerRectCache = null;
+          });
+        }
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        let rect = this._layerRectCache;
+        if (!rect || (now - (this._layerRectCacheTs || 0)) > 150) {
+          rect = this._layerEl.getBoundingClientRect();
+          this._layerRectCache = rect;
+          this._layerRectCacheTs = now;
+        }
         const nearLeft = clientX <= rect.left + 16;
         const nearRight = clientX >= rect.right - 16;
         const nearTop = clientY <= rect.top + 10;

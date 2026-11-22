@@ -16,7 +16,30 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-export const DEFAULT_CHROMIUM_PATH = process.env.OMNIOS_CHROMIUM_PATH || '/usr/lib/chromium/chromium';
+import { accessSync as _probeAccessSync, constants as _probeFsConstants } from 'node:fs';
+
+function resolveDefaultChromiumPath() {
+  const candidates = [
+    process.env.OMNIOS_CHROMIUM_PATH,
+    '/usr/lib/chromium/chromium',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      _probeAccessSync(candidate, _probeFsConstants.X_OK);
+      return candidate;
+    } catch {
+      // try next candidate
+    }
+  }
+  return '/usr/lib/chromium/chromium';
+}
+
+export const DEFAULT_CHROMIUM_PATH = resolveDefaultChromiumPath();
 
 export const CDP_MODIFIERS = Object.freeze({
   Alt: 1,

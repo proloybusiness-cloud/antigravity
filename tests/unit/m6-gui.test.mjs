@@ -17,12 +17,34 @@ import { fileURLToPath } from 'node:url';
 
 import { createOmniOS } from '../../os/os.mjs';
 import { createHttpServer } from '../../os/server/http-server.mjs';
+import { accessSync as _probeAccessSync, constants as _probeFsConstants } from 'node:fs';
+
+function resolveChromiumBin() {
+  const candidates = [
+    process.env.OMNIOS_CHROMIUM_PATH,
+    '/usr/lib/chromium/chromium',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      _probeAccessSync(candidate, _probeFsConstants.X_OK);
+      return candidate;
+    } catch {
+      // try next executable candidate
+    }
+  }
+  return '/usr/lib/chromium/chromium';
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const PACKAGES_DIR = path.join(REPO_ROOT, 'packages');
-const CHROMIUM_BIN = '/usr/lib/chromium/chromium';
+const CHROMIUM_BIN = resolveChromiumBin();
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1742,6 +1764,46 @@ describe('OmniOS M6 Real Browser GUI & Headless Chromium CDP Suite (F-073 – F-
     await closeAllWindows();
 
     // Final Zero-Error & Offline Hygiene Assertion across entire test run
+    assert.deepEqual(cdp.failedResponses, [], `Unexpected HTTP >=400 responses: ${JSON.stringify(cdp.failedResponses)}`);
+    assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${JSON.stringify(cdp.consoleErrors)}`);
+    assert.deepEqual(cdp.pageErrors, [], `Unexpected uncaught page errors: ${JSON.stringify(cdp.pageErrors)}`);
+  });
+
+  it('Suite 9: Potato-PC Lite Performance Mode toggles blur/animations off cleanly and persists', async () => {
+    const initial = await cdp.evaluate(`({
+      perf: document.getElementById('omni-shell')?.getAttribute('data-perf'),
+      liteAttr: document.getElementById('omni-shell')?.getAttribute('data-lite-mode'),
+      btnPresent: Boolean(document.getElementById('btn-perf-lite-toggle')),
+    })`);
+    assert.equal(initial.perf, 'standard');
+    assert.equal(initial.liteAttr, 'false');
+    assert.equal(initial.btnPresent, true);
+
+    await cdp.evaluate(`document.getElementById('btn-perf-lite-toggle').click()`);
+    const lite = await cdp.evaluate(`({
+      perf: document.getElementById('omni-shell')?.getAttribute('data-perf'),
+      liteAttr: document.getElementById('omni-shell')?.getAttribute('data-lite-mode'),
+      stored: window.localStorage.getItem('omnios.perfMode'),
+      blurVar: getComputedStyle(document.getElementById('omni-shell')).getPropertyValue('--blur-glass').trim(),
+      ccBackdrop: getComputedStyle(document.getElementById('ios-control-center')).backdropFilter,
+      btnActive: document.getElementById('btn-perf-lite-toggle')?.getAttribute('data-active'),
+    })`);
+    assert.equal(lite.perf, 'lite');
+    assert.equal(lite.liteAttr, 'true');
+    assert.equal(lite.stored, 'lite');
+    assert.equal(lite.blurVar, 'none');
+    assert.equal(lite.ccBackdrop, 'none');
+    assert.equal(lite.btnActive, 'true');
+
+    // Toggle back to standard cleanly
+    await cdp.evaluate(`document.getElementById('btn-perf-lite-toggle').click()`);
+    const restored = await cdp.evaluate(`({
+      perf: document.getElementById('omni-shell')?.getAttribute('data-perf'),
+      stored: window.localStorage.getItem('omnios.perfMode'),
+    })`);
+    assert.equal(restored.perf, 'standard');
+    assert.equal(restored.stored, 'standard');
+
     assert.deepEqual(cdp.failedResponses, [], `Unexpected HTTP >=400 responses: ${JSON.stringify(cdp.failedResponses)}`);
     assert.deepEqual(cdp.consoleErrors, [], `Unexpected console errors: ${JSON.stringify(cdp.consoleErrors)}`);
     assert.deepEqual(cdp.pageErrors, [], `Unexpected uncaught page errors: ${JSON.stringify(cdp.pageErrors)}`);
