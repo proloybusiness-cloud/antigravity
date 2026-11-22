@@ -1,0 +1,101 @@
+/* ==========================================================================
+   OmniOS Shell Mode: WINDOWS (Fluent Desktop, Taskbar, Start Menu, Snap)
+   ========================================================================== */
+
+#omni-shell[data-shell-mode="windows"] {
+  --bar-top-height: 34px;
+  --bar-bottom-height: 50px;
+}
+
+#omni-shell[data-shell-mode="windows"][data-theme="dark"] {
+  --wallpaper:
+    radial-gradient(ellipse 75% 65% at 24% 25%, rgba(14, 165, 233, 0.34), transparent 60%),
+    radial-gradient(ellipse 68% 60% at 76% 78%, rgba(3, 105, 161, 0.30), transparent 62%),
+    linear-gradient(145deg, #060b16 0%, #0a1628 52%, #071020 100%);
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+}
+
+#omni-shell[data-shell-mode="windows"][data-theme="light"] {
+  --wallpaper:
+    radial-gradient(ellipse 75% 65% at 24% 25%, rgba(14, 165, 233, 0.24), transparent 60%),
+    radial-gradient(ellipse 68% 60% at 78% 76%, rgba(56, 189, 248, 0.20), transparent 62%),
+    linear-gradient(145deg, #edf4fc 0%, #dbeafe 54%, #eef6ff 100%);
+  --accent: #0067c0;
+  --accent-hover: #005a9e;
+}
+
+/* Slim Top Shell Mode Strip (keeps 1-click shell mode switch & status visible) */
+#omni-shell[data-shell-mode="windows"] #top-bar {
+  display: flex;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--surface-glass-strong);
+}
+
+#omni-shell[data-shell-mode="windows"] #global-menu-bar {
+  display: none;
+}
+
+#omni-shell[data-shell-mode="windows"] #dynamic-island[data-active="false"] {
+  display: none;
+}
+
+#omni-shell[data-shell-mode="windows"] #dynamic-island[data-active="true"] {
+  display: flex;
+}
+
+/* Show Windows Desktop + Taskbar; Hide Dock / iOS / Android Bars */
+#omni-shell[data-shell-mode="windows"] #desktop-backdrop {
+  display: block;
+}
+
+#omni-shell[data-shell-mode="windows"] #win-taskbar {
+  display: flex;
+}
+
+#omni-shell[data-shell-mode="windows"] #floating-dock,
+#omni-shell[data-shell-mode="windows"] #ios-springboard,
+#omni-shell[data-shell-mode="windows"] #ios-home-bar,
+#omni-shell[data-shell-mode="windows"] #android-navbar {
+  display: none;
+}
+
+/* Classic Left-Aligned Windows Desktop Icons */
+#omni-shell[data-shell-mode="windows"] .desktop-shortcuts {
+  left: 0;
+  gap: 8px;
+}
+
+#omni-shell[data-shell-mode="windows"] .desktop-shortcut,
+#omni-shell[data-shell-mode="windows"] .desktop-shortcuts button {
+  border-radius: 6px;
+}
+
+/* Fluent Window & Snap Emphasis */
+#omni-shell[data-shell-mode="windows"] .omni-window {
+  border-radius: 8px;
+}
+
+#omni-shell[data-shell-mode="windows"] .omni-window[data-window-state="maximized"],
+#omni-shell[data-shell-mode="windows"] .omni-window[data-window-state="fullscreen"] {
+  border-radius: 0;
+}
+
+#omni-shell[data-shell-mode="windows"] .win-btn-snap {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+#omni-shell[data-shell-mode="windows"] .win-start-menu {
+  bottom: 60px;
+  border-radius: 12px;
+}
+
+#omni-shell[data-shell-mode="windows"] .ios-control-center,
+#omni-shell[data-shell-mode="windows"] .android-shade {
+  top: auto;
+  bottom: 60px;
+  right: 12px;
+  border-radius: 12px;
+}

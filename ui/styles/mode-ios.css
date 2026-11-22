@@ -1,0 +1,99 @@
+/* ==========================================================================
+   OmniOS Shell Mode: iOS / iPadOS (Dynamic Island, SpringBoard, Control Center)
+   ========================================================================== */
+
+#omni-shell[data-shell-mode="ios"] {
+  --bar-top-height: 48px;
+  --bar-bottom-height: 46px;
+}
+
+#omni-shell[data-shell-mode="ios"][data-theme="dark"] {
+  --wallpaper:
+    radial-gradient(ellipse 80% 65% at 22% 18%, rgba(56, 189, 248, 0.28), transparent 58%),
+    radial-gradient(ellipse 75% 65% at 80% 78%, rgba(99, 102, 241, 0.24), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(14, 116, 144, 0.20), transparent 62%),
+    linear-gradient(165deg, #070d19 0%, #0d1629 52%, #0a1222 100%);
+}
+
+#omni-shell[data-shell-mode="ios"][data-theme="light"] {
+  --wallpaper:
+    radial-gradient(ellipse 80% 65% at 22% 18%, rgba(56, 189, 248, 0.24), transparent 58%),
+    radial-gradient(ellipse 75% 65% at 80% 78%, rgba(99, 102, 241, 0.16), transparent 60%),
+    linear-gradient(165deg, #f0f6ff 0%, #e4eefc 52%, #eef4fc 100%);
+}
+
+/* iOS Status Bar with Prominent Centered Dynamic Island */
+#omni-shell[data-shell-mode="ios"] #top-bar {
+  display: flex;
+  height: 48px;
+  padding: 0 16px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: none;
+}
+
+#omni-shell[data-shell-mode="ios"] #global-menu-bar {
+  display: none;
+}
+
+#omni-shell[data-shell-mode="ios"] #dynamic-island {
+  display: flex;
+}
+
+#omni-shell[data-shell-mode="ios"] .dynamic-island-pill {
+  height: 34px;
+  min-width: 176px;
+  padding: 0 16px;
+  background: #000000;
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.52);
+}
+
+#omni-shell[data-shell-mode="ios"] .dynamic-island[data-active="true"] .dynamic-island-pill {
+  min-width: 248px;
+}
+
+/* Show SpringBoard & Home Bar; Hide Desktop Shortcuts / Dock / Taskbar / Android Bar */
+#omni-shell[data-shell-mode="ios"] #ios-springboard {
+  display: block;
+}
+
+#omni-shell[data-shell-mode="ios"] #ios-home-bar {
+  display: flex;
+}
+
+#omni-shell[data-shell-mode="ios"] #desktop-backdrop,
+#omni-shell[data-shell-mode="ios"] #floating-dock,
+#omni-shell[data-shell-mode="ios"] #win-taskbar,
+#omni-shell[data-shell-mode="ios"] #android-navbar {
+  display: none;
+}
+
+/* Squircle SpringBoard App Icons */
+#omni-shell[data-shell-mode="ios"] .springboard-grid .app-icon-tile,
+#omni-shell[data-shell-mode="ios"] .app-library-grid .app-icon-tile {
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+  font-size: 22px;
+}
+
+/* iPadOS Stage Manager / Rounded Card Windows Above SpringBoard */
+#omni-shell[data-shell-mode="ios"] .omni-window {
+  inset: 12px 16px;
+  width: auto;
+  height: auto;
+  border-radius: 22px;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.50);
+}
+
+#omni-shell[data-shell-mode="ios"][data-theme="light"] .omni-window {
+  box-shadow: 0 22px 58px rgba(15, 23, 42, 0.20);
+}
+
+#omni-shell[data-shell-mode="ios"] .ios-control-center {
+  top: 56px;
+  right: 16px;
+  border-radius: 28px;
+}

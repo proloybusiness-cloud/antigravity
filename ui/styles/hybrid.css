@@ -1,0 +1,63 @@
+/* ==========================================================================
+   OmniOS Shell Mode: UNIFIED HYBRID (Default Flagship Mode)
+   Combines Global Menu Bar + Dynamic Island + Magnified Dock + Snap Layouts
+   + Control Center + Notification Shade
+   ========================================================================== */
+
+#omni-shell[data-shell-mode="unified"] {
+  --bar-top-height: 40px;
+  --bar-bottom-height: 78px;
+}
+
+#omni-shell[data-shell-mode="unified"] #top-bar {
+  display: flex;
+}
+
+#omni-shell[data-shell-mode="unified"] #global-menu-bar {
+  display: flex;
+}
+
+#omni-shell[data-shell-mode="unified"] #dynamic-island {
+  display: flex;
+}
+
+#omni-shell[data-shell-mode="unified"] #desktop-backdrop {
+  display: block;
+}
+
+#omni-shell[data-shell-mode="unified"] #floating-dock {
+  display: flex;
+}
+
+/* Hide Non-Hybrid Bottom Bars & iOS SpringBoard */
+#omni-shell[data-shell-mode="unified"] #win-taskbar,
+#omni-shell[data-shell-mode="unified"] #ios-springboard,
+#omni-shell[data-shell-mode="unified"] #ios-home-bar,
+#omni-shell[data-shell-mode="unified"] #android-navbar {
+  display: none;
+}
+
+/* Hybrid Flagship Dock & Snap Polish */
+#omni-shell[data-shell-mode="unified"] .floating-dock {
+  bottom: 12px;
+  padding: 8px 14px;
+  border-radius: 22px;
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+#omni-shell[data-shell-mode="unified"][data-theme="light"] .floating-dock {
+  box-shadow:
+    0 16px 40px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+#omni-shell[data-shell-mode="unified"] .dock-item:hover,
+#omni-shell[data-shell-mode="unified"] .floating-dock button:hover {
+  transform: translateY(-7px) scale(1.14);
+}
+
+#omni-shell[data-shell-mode="unified"] .win-btn-snap {
+  color: var(--accent);
+}

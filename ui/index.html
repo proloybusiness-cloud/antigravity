@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="OmniOS — All-in-One Cross-Platform Operating System running real Android, Windows, iOS, macOS, and Universal WebAssembly apps side-by-side inside a unified 5-mode adaptive shell.">
+  <meta name="color-scheme" content="dark light">
+  <title>OmniOS — Unified 4-Platform Operating System</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABVklEQVR42tWXu23DMBRFXagLYFYCexcuOEFW0BKZgCt4lXRZQL07egXNoJQpDCSVAwEMEBLvcx8dJYqA2/ijc0Q+io+73X+7nA+982FwPkTnwykn5s/6taBdhiTnw01Jyr/tfgq+3GwGwHWW/8R7h3psANcZzVPjfDg6HybqhofLU5H9y2sRRmK519Hy5JMG5gQEkQkaCWrYObgkwEiMSMHBcE2AkYjSUpsROFdwoMRMLtH66a1wo0SkBJImgC49QCBRlW+Cv10/ijRI9N8FBklAg6MS1fcDPP8InJKA6yDvaL8tcGIFrs8PRVoFHs/vRSSB+AcCkS1CScBShIrAwC7DWgCR0OCEQC++iBAJLgA8qa9iSgCRoODi/EubkVUChM9sv0htx5zEVzgoA7+pfSLVkLQKmBsSqSWzCjS3ZFpTqgnc3ZRuoi3fxMFkM0ezTRxO17w+AdW/J8ycc84WAAAAAElFTkSuQmCC">
+  <link rel="stylesheet" href="styles/base.css">
+  <link rel="stylesheet" href="styles/hybrid.css">
+  <link rel="stylesheet" href="styles/mode-windows.css">
+  <link rel="stylesheet" href="styles/mode-macos.css">
+  <link rel="stylesheet" href="styles/mode-ios.css">
+  <link rel="stylesheet" href="styles/mode-android.css">
+</head>
+<body>
+  <div id="omni-shell"
+       class="omni-shell mode-unified"
+       data-shell-mode="unified"
+       data-theme="dark"
+       data-chrome-mode="adaptive"
+       data-ws-connected="false"
+       data-hydrated="false"
+       data-window-count="0"
+       data-focused-window=""
+       data-brightness="80">
+
+    <!-- ==================== A. GLOBAL TOP BAR ==================== -->
+    <header id="top-bar" class="top-bar" role="banner">
+      <div id="menu-bar-brand" class="menu-bar-brand">
+        <div class="omni-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+            <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="1.6" opacity="0.28"/>
+            <path d="M12 2.5A9.5 9.5 0 0 0 2.5 12" stroke="#22c55e" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M12 2.5A9.5 9.5 0 0 1 21.5 12" stroke="#0ea5e9" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M21.5 12A9.5 9.5 0 0 1 12 21.5" stroke="#a855f7" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M12 21.5A9.5 9.5 0 0 1 2.5 12" stroke="#f59e0b" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="2.6" fill="currentColor"/>
+          </svg>
+        </div>
+        <span class="omni-brand-name">OmniOS</span>
+        <nav id="global-menu-bar" class="global-menu-bar" role="menubar" aria-label="Application Menu Bar"></nav>
+      </div>
+
+      <!-- Dynamic Island Live Activity Pill + Expanded Card -->
+      <div id="dynamic-island" class="dynamic-island" data-expanded="false" data-active="false" role="region" aria-label="Dynamic Island">
+        <button type="button" id="dynamic-island-pill" class="dynamic-island-pill" aria-expanded="false" aria-controls="dynamic-island-expanded" title="Dynamic Island Live Activity">
+          <span id="di-leading" class="di-leading" aria-hidden="true"></span>
+          <span id="di-title" class="di-title">OmniOS</span>
+          <span id="di-trailing" class="di-trailing"></span>
+        </button>
+        <div id="dynamic-island-expanded" class="dynamic-island-expanded" aria-hidden="true">
+          <div class="di-exp-header">
+            <div class="di-exp-headings">
+              <div id="di-exp-title" class="di-exp-title">Live Activities</div>
+              <div id="di-exp-subtitle" class="di-exp-subtitle">No active Live Activities</div>
+            </div>
+          </div>
+          <div id="di-exp-body" class="di-exp-body"></div>
+          <div id="di-exp-progress-bar" class="di-exp-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="di-exp-progress-fill" class="di-exp-progress-fill"></div>
+          </div>
+          <div id="di-exp-actions" class="di-exp-actions"></div>
+          <div id="di-exp-list" class="di-exp-list"></div>
+        </div>
+      </div>
+
+      <!-- Top Bar Status & Shell Mode Controls -->
+      <div id="top-bar-right" class="top-bar-right">
+        <div id="shell-mode-switcher" class="shell-mode-switcher" role="group" aria-label="Shell Mode">
+          <button type="button" class="shell-mode-btn is-active" data-shell-mode-btn="unified" aria-pressed="true" title="Unified Hybrid Mode">Unified Hybrid</button>
+          <button type="button" class="shell-mode-btn" data-shell-mode-btn="windows" aria-pressed="false" title="Windows Desktop Mode">Windows</button>
+          <button type="button" class="shell-mode-btn" data-shell-mode-btn="macos" aria-pressed="false" title="macOS Desktop Mode">macOS</button>
+          <button type="button" class="shell-mode-btn" data-shell-mode-btn="ios" aria-pressed="false" title="iOS / iPadOS Shell Mode">iOS</button>
+          <button type="button" class="shell-mode-btn" data-shell-mode-btn="android" aria-pressed="false" title="Android Shell Mode">Android</button>
+        </div>
+
+        <div class="top-bar-actions">
+          <button type="button" id="btn-spotlight" class="top-icon-btn" title="Spotlight (Ctrl/Cmd+Space)" aria-label="Spotlight Search">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+              <circle cx="8.75" cy="8.75" r="5.5" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M13 13l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <button type="button" id="btn-upload-pkg" class="top-icon-btn" title="Install Package (.apk, .exe, .ipa, .app.zip, .uapp)" aria-label="Upload Package">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+              <path d="M10 13V4m0 0L6.5 7.5M10 4l3.5 3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3.5 13.5v1.75A1.75 1.75 0 0 0 5.25 17h9.5a1.75 1.75 0 0 0 1.75-1.75V13.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <button type="button" id="btn-control-center" class="top-icon-btn" title="Control Center" aria-label="Control Center" aria-expanded="false">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+              <rect x="2.5" y="3.5" width="15" height="5" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+              <circle cx="14.5" cy="6" r="1.4" fill="currentColor"/>
+              <rect x="2.5" y="11.5" width="15" height="5" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+              <circle cx="5.5" cy="14" r="1.4" fill="currentColor"/>
+            </svg>
+          </button>
+
+          <button type="button" id="btn-notif-shade" class="top-icon-btn top-notif-btn" title="Notifications &amp; Quick Settings" aria-label="Notifications" aria-expanded="false">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+              <path d="M10 3a4.5 4.5 0 0 0-4.5 4.5v2.9c0 .7-.27 1.38-.75 1.88L3.7 13.4a.6.6 0 0 0 .44 1h11.72a.6.6 0 0 0 .44-1l-1.05-1.12a2.65 2.65 0 0 1-.75-1.88V7.5A4.5 4.5 0 0 0 10 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="M8.3 16.2a1.8 1.8 0 0 0 3.4 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span id="notif-badge" class="notif-badge" data-count="0">0</span>
+          </button>
+
+          <button type="button" id="btn-theme-toggle" class="top-icon-btn" title="Toggle Dark / Light Theme" aria-label="Toggle Theme">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+              <circle cx="10" cy="10" r="3.6" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <button type="button" id="btn-chrome-toggle" class="top-icon-btn" title="Toggle Adaptive vs Unified Window Chrome" aria-label="Toggle Window Chrome Mode">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+              <rect x="2.5" y="3.5" width="15" height="13" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M2.5 7.5h15" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="5.5" cy="5.5" r="0.8" fill="currentColor"/>
+              <circle cx="8" cy="5.5" r="0.8" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+
+        <div id="ws-status-indicator" class="ws-status-indicator" data-connected="false" role="status" aria-live="polite" title="Kernel WebSocket Connection">
+          <span class="ws-dot" aria-hidden="true"></span>
+          <span id="ws-status-text" class="ws-status-text">Connecting</span>
+        </div>
+
+        <time id="top-clock" class="top-clock" aria-label="System Clock">--:--</time>
+      </div>
+    </header>
+
+    <!-- Floating Global Menu Dropdown -->
+    <div id="menu-bar-dropdown" class="menu-bar-dropdown" data-open="false" role="menu" aria-label="Menu Items"></div>
+
+    <!-- ==================== B. WORKSPACE & COMPOSITOR LAYER ==================== -->
+    <main id="workspace" class="workspace">
+      <!-- Desktop Wallpaper + Shortcuts -->
+      <section id="desktop-backdrop" class="desktop-backdrop" aria-label="Desktop Workspace">
+        <div class="desktop-ambient" aria-hidden="true"></div>
+        <div class="desktop-welcome">
+          <h1 class="desktop-welcome-title">OmniOS</h1>
+          <p class="desktop-welcome-subtitle">Android &middot; Windows &middot; iOS &middot; macOS &middot; Universal WASM</p>
+          <p class="desktop-welcome-hint">Press <kbd>Ctrl</kbd>+<kbd>Space</kbd> for Spotlight or drop any binary package onto the desktop</p>
+        </div>
+        <div id="desktop-shortcuts" class="desktop-shortcuts" aria-label="Desktop Application Shortcuts"></div>
+      </section>
+
+      <!-- iOS SpringBoard & App Library (active in iOS mode beneath window-layer) -->
+      <section id="ios-springboard" class="ios-springboard" aria-label="iOS SpringBoard">
+        <div class="springboard-inner">
+          <div class="springboard-search-wrap">
+            <input type="search" id="springboard-search" class="springboard-search" placeholder="Search apps &amp; packages..." autocomplete="off" aria-label="Search SpringBoard">
+          </div>
+          <div id="springboard-grid" class="springboard-grid" aria-label="Home Screen Applications"></div>
+          <div id="app-library-section" class="app-library-section" aria-label="App Library">
+            <h2 class="app-library-heading">App Library</h2>
+            <div id="app-library-grid" class="app-library-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live Compositor Window Layer -->
+      <section id="window-layer" class="window-layer" aria-label="Compositor Windows"></section>
+
+      <!-- Drag / Snap Preview Ghost -->
+      <div id="snap-preview-ghost" class="snap-preview-ghost" data-active="false" aria-hidden="true"></div>
+
+      <!-- Live Notification Toast Stack -->
+      <div id="toast-stack" class="toast-stack" role="region" aria-label="Live Notifications" aria-live="polite"></div>
+    </main>
+
+    <!-- ==================== C. FLOATING DOCK (UNIFIED & MACOS) ==================== -->
+    <nav id="floating-dock" class="floating-dock" aria-label="Application Dock">
+      <div id="dock-apps" class="dock-apps"></div>
+      <div id="dock-separator" class="dock-separator" role="separator" aria-orientation="vertical"></div>
+      <div id="dock-minimized" class="dock-minimized"></div>
+    </nav>
+
+    <!-- ==================== D. WINDOWS TASKBAR & START MENU ==================== -->
+    <footer id="win-taskbar" class="win-taskbar" aria-label="Windows Taskbar">
+      <div class="win-taskbar-left"></div>
+      <div class="win-taskbar-center">
+        <button type="button" id="btn-win-start" class="win-taskbar-btn win-start-btn" aria-expanded="false" aria-controls="win-start-menu" title="Start">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+            <rect x="2" y="2" width="7.2" height="7.2" rx="1.2" fill="#38bdf8"/>
+            <rect x="10.8" y="2" width="7.2" height="7.2" rx="1.2" fill="#0ea5e9"/>
+            <rect x="2" y="10.8" width="7.2" height="7.2" rx="1.2" fill="#0284c7"/>
+            <rect x="10.8" y="10.8" width="7.2" height="7.2" rx="1.2" fill="#22c55e"/>
+          </svg>
+        </button>
+        <button type="button" id="btn-win-search" class="win-taskbar-btn win-search-btn" title="Search (Ctrl+Space)" aria-label="Search">
+          <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+            <circle cx="8.75" cy="8.75" r="5.25" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M12.8 12.8l4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <span class="win-search-label">Search</span>
+        </button>
+        <div id="win-taskbar-apps" class="win-taskbar-apps" role="list" aria-label="Taskbar Applications"></div>
+      </div>
+
+      <div id="win-system-tray" class="win-system-tray" aria-label="Windows System Tray">
+        <button type="button" id="btn-win-tray-cc" class="win-tray-btn" title="Quick Settings &amp; Control Center" aria-label="Quick Settings">
+          <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+            <path d="M3 8.5a10 10 0 0 1 14 0M5.8 11.4a6 6 0 0 1 8.4 0M8.7 14.3a2 2 0 0 1 2.6 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button type="button" id="btn-win-tray-notifs" class="win-tray-btn win-tray-notif-btn" title="Notifications" aria-label="Action Center Notifications">
+          <svg viewBox="0 0 20 20" width="15" height="15" fill="none" aria-hidden="true">
+            <path d="M10 3a4.5 4.5 0 0 0-4.5 4.5v2.9c0 .7-.27 1.38-.75 1.88L3.7 13.4a.6.6 0 0 0 .44 1h11.72a.6.6 0 0 0 .44-1l-1.05-1.12a2.65 2.65 0 0 1-.75-1.88V7.5A4.5 4.5 0 0 0 10 3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M8.3 16.2a1.8 1.8 0 0 0 3.4 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span id="win-notif-badge" class="notif-badge" data-count="0">0</span>
+        </button>
+        <time id="win-tray-clock" class="win-tray-clock" aria-label="System Tray Clock">--:--</time>
+      </div>
+    </footer>
+
+    <aside id="win-start-menu" class="win-start-menu" data-open="false" aria-label="Start Menu">
+      <div class="start-search-wrap">
+        <input type="search" id="start-search-input" class="start-search-input" placeholder="Search for apps, settings, and files..." autocomplete="off" aria-label="Search Start Menu">
+      </div>
+      <div class="start-section">
+        <div class="start-section-header">
+          <h2 class="start-section-title">Pinned</h2>
+        </div>
+        <div id="start-pinned-grid" class="start-pinned-grid"></div>
+      </div>
+      <div class="start-section start-section-all">
+        <div class="start-section-header">
+          <h2 class="start-section-title">All 4-Platform Apps</h2>
+        </div>
+        <div id="start-all-apps-list" class="start-all-apps-list"></div>
+      </div>
+      <div id="start-footer-actions" class="start-footer-actions">
+        <div class="start-footer-modes" role="group" aria-label="Quick Shell Mode">
+          <button type="button" class="mini-mode-btn" data-shell-mode-btn="unified">Hybrid</button>
+          <button type="button" class="mini-mode-btn" data-shell-mode-btn="macos">macOS</button>
+          <button type="button" class="mini-mode-btn" data-shell-mode-btn="ios">iOS</button>
+          <button type="button" class="mini-mode-btn" data-shell-mode-btn="android">Android</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== E. iOS CONTROL CENTER & HOME BAR ==================== -->
+    <aside id="ios-control-center" class="ios-control-center" data-open="false" aria-label="Control Center">
+      <div class="panel-header">
+        <h2 class="panel-title">Control Center</h2>
+        <button type="button" id="btn-close-cc" class="panel-close-btn" aria-label="Close Control Center">&times;</button>
+      </div>
+
+      <div class="cc-toggles-grid">
+        <button type="button" class="cc-tile" data-system-toggle="system.wifi" data-active="true" aria-pressed="true">
+          <span class="cc-tile-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+              <path d="M2.8 8.3a10.4 10.4 0 0 1 14.4 0M5.7 11.3a6.2 6.2 0 0 1 8.6 0M8.6 14.3a2.2 2.2 0 0 1 2.8 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="cc-tile-label">Wi-Fi</span>
+        </button>
+
+        <button type="button" class="cc-tile" data-system-toggle="system.bluetooth" data-active="true" aria-pressed="true">
+          <span class="cc-tile-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+              <path d="M6.5 6.5l7 7-3.5 3.5V3l3.5 3.5-7 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="cc-tile-label">Bluetooth</span>
+        </button>
+
+        <button type="button" class="cc-tile" data-system-toggle="system.dnd" data-active="false" aria-pressed="false">
+          <span class="cc-tile-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+              <path d="M15.6 12.6A6.5 6.5 0 0 1 7.4 4.4a6.5 6.5 0 1 0 8.2 8.2Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="cc-tile-label">Focus / DND</span>
+        </button>
+
+        <button type="button" class="cc-tile" data-system-toggle="system.theme" data-active="true" aria-pressed="true">
+          <span class="cc-tile-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+              <circle cx="10" cy="10" r="3.6" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="cc-tile-label">Dark Mode</span>
+        </button>
+      </div>
+
+      <div class="cc-sliders">
+        <label class="cc-slider-group" for="cc-brightness-slider">
+          <div class="cc-slider-meta">
+            <span class="cc-slider-name">Brightness</span>
+            <span id="cc-brightness-val" class="cc-slider-val">80%</span>
+          </div>
+          <input type="range" id="cc-brightness-slider" class="cc-slider" data-system-range="system.brightness" min="0" max="100" value="80">
+        </label>
+
+        <label class="cc-slider-group" for="cc-volume-slider">
+          <div class="cc-slider-meta">
+            <span class="cc-slider-name">Volume</span>
+            <span id="cc-volume-val" class="cc-slider-val">75%</span>
+          </div>
+          <input type="range" id="cc-volume-slider" class="cc-slider" data-system-range="system.volume" min="0" max="100" value="75">
+        </label>
+      </div>
+
+      <div class="cc-modes-section">
+        <div class="cc-modes-label">Adaptive Shell Mode</div>
+        <div class="cc-modes-grid" role="group" aria-label="Control Center Shell Mode">
+          <button type="button" class="cc-mode-btn" data-shell-mode-btn="unified">Unified</button>
+          <button type="button" class="cc-mode-btn" data-shell-mode-btn="windows">Windows</button>
+          <button type="button" class="cc-mode-btn" data-shell-mode-btn="macos">macOS</button>
+          <button type="button" class="cc-mode-btn" data-shell-mode-btn="ios">iOS</button>
+          <button type="button" class="cc-mode-btn" data-shell-mode-btn="android">Android</button>
+        </div>
+      </div>
+    </aside>
+
+    <div id="ios-home-bar" class="ios-home-bar" role="navigation" aria-label="iOS Home Gesture Bar">
+      <button type="button" id="btn-ios-cc-pull" class="ios-bar-action" title="Open Control Center">Control Center</button>
+      <button type="button" id="btn-ios-home" class="ios-home-pill" aria-label="Home Screen" title="Home / SpringBoard">
+        <span class="ios-home-indicator" aria-hidden="true"></span>
+      </button>
+      <button type="button" id="btn-ios-switcher" class="ios-bar-action" title="Open App Switcher">App Switcher</button>
+    </div>
+
+    <!-- ==================== F. ANDROID SHADE, DRAWER, RECENTS & NAV BAR ==================== -->
+    <aside id="android-shade" class="android-shade" data-open="false" aria-label="Notification Shade and Quick Settings">
+      <div class="shade-top-bar">
+        <h2 class="panel-title">Quick Settings &amp; Notifications</h2>
+        <button type="button" id="btn-close-shade" class="panel-close-btn" aria-label="Close Notification Shade">&times;</button>
+      </div>
+
+      <div id="android-qs-grid" class="android-qs-grid">
+        <button type="button" class="qs-tile" data-system-toggle="system.wifi" data-active="true" aria-pressed="true">
+          <span class="qs-tile-label">Wi-Fi</span>
+          <span class="qs-tile-state">On</span>
+        </button>
+        <button type="button" class="qs-tile" data-system-toggle="system.bluetooth" data-active="true" aria-pressed="true">
+          <span class="qs-tile-label">Bluetooth</span>
+          <span class="qs-tile-state">On</span>
+        </button>
+        <button type="button" class="qs-tile" data-system-toggle="system.dnd" data-active="false" aria-pressed="false">
+          <span class="qs-tile-label">Do Not Disturb</span>
+          <span class="qs-tile-state">Off</span>
+        </button>
+        <button type="button" class="qs-tile" data-system-toggle="system.theme" data-active="true" aria-pressed="true">
+          <span class="qs-tile-label">Dark Theme</span>
+          <span class="qs-tile-state">Dark</span>
+        </button>
+
+        <div class="qs-sliders-wrap">
+          <label class="qs-slider-row" for="qs-brightness-slider">
+            <span class="qs-slider-label">Brightness</span>
+            <input type="range" id="qs-brightness-slider" class="qs-slider" data-system-range="system.brightness" min="0" max="100" value="80">
+          </label>
+          <label class="qs-slider-row" for="qs-volume-slider">
+            <span class="qs-slider-label">Volume</span>
+            <input type="range" id="qs-volume-slider" class="qs-slider" data-system-range="system.volume" min="0" max="100" value="75">
+          </label>
+        </div>
+      </div>
+
+      <div id="shade-notif-header" class="shade-notif-header">
+        <span class="shade-notif-title">Notifications</span>
+        <button type="button" id="btn-clear-notifs" class="shade-action-btn">Clear All</button>
+      </div>
+
+      <div id="shade-notif-list" class="shade-notif-list" role="list" aria-label="Notifications"></div>
+    </aside>
+
+    <aside id="android-app-drawer" class="android-app-drawer" data-open="false" aria-label="Android App Drawer">
+      <div class="drawer-header">
+        <input type="search" id="drawer-search-input" class="drawer-search-input" placeholder="Search apps across all platforms..." autocomplete="off" aria-label="Search App Drawer">
+        <button type="button" id="btn-close-drawer" class="panel-close-btn" aria-label="Close App Drawer">&times;</button>
+      </div>
+      <div id="drawer-apps-grid" class="drawer-apps-grid"></div>
+    </aside>
+
+    <section id="android-recents" class="android-recents" data-open="false" aria-label="Recent Apps">
+      <div class="recents-header">
+        <h2 class="recents-title">Recent Apps &amp; Running Processes</h2>
+        <button type="button" id="btn-close-recents" class="panel-close-btn" aria-label="Close Recent Apps">&times;</button>
+      </div>
+      <div id="recents-cards" class="recents-cards"></div>
+    </section>
+
+    <nav id="android-navbar" class="android-navbar" aria-label="Android Navigation Bar">
+      <button type="button" id="btn-android-back" class="android-nav-btn" aria-label="Back" title="Back">
+        <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+          <path d="M13 4.5L6.5 10l6.5 5.5V4.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button type="button" id="btn-android-home" class="android-nav-btn" aria-label="Home" title="Home">
+        <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+          <circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+      </button>
+      <button type="button" id="btn-android-recents" class="android-nav-btn" aria-label="Recents" title="Recent Apps">
+        <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+          <rect x="4.5" y="4.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+      </button>
+      <button type="button" id="btn-android-drawer" class="android-nav-btn android-drawer-btn" aria-label="App Drawer" title="All Apps Drawer">
+        <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+          <circle cx="5.5" cy="5.5" r="1.5" fill="currentColor"/>
+          <circle cx="10" cy="5.5" r="1.5" fill="currentColor"/>
+          <circle cx="14.5" cy="5.5" r="1.5" fill="currentColor"/>
+          <circle cx="5.5" cy="10" r="1.5" fill="currentColor"/>
+          <circle cx="10" cy="10" r="1.5" fill="currentColor"/>
+          <circle cx="14.5" cy="10" r="1.5" fill="currentColor"/>
+          <circle cx="5.5" cy="14.5" r="1.5" fill="currentColor"/>
+          <circle cx="10" cy="14.5" r="1.5" fill="currentColor"/>
+          <circle cx="14.5" cy="14.5" r="1.5" fill="currentColor"/>
+        </svg>
+      </button>
+    </nav>
+
+    <!-- ==================== G. GLOBAL OVERLAYS & MODALS ==================== -->
+
+    <!-- 1. Spotlight Universal Search -->
+    <div id="spotlight-overlay" class="modal-backdrop spotlight-overlay" data-open="false" role="dialog" aria-modal="true" aria-label="Spotlight Search">
+      <div class="spotlight-dialog">
+        <div class="spotlight-input-row">
+          <span class="spotlight-search-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
+              <circle cx="8.75" cy="8.75" r="5.5" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M13 13l4.2 4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <input type="search" id="spotlight-input" class="spotlight-input" placeholder="Search OmniOS apps, VFS files, processes, settings, actions..." autocomplete="off" spellcheck="false" aria-label="Spotlight Search Query">
+          <kbd class="spotlight-kbd">Esc</kbd>
+        </div>
+        <div id="spotlight-results" class="spotlight-results" role="listbox" aria-label="Spotlight Results"></div>
+        <div id="spotlight-status" class="spotlight-status">Type to search apps, files, processes, settings &amp; quick actions</div>
+      </div>
+    </div>
+
+    <!-- 2. Universal Share Sheet / Intent Chooser Modal -->
+    <div id="intent-chooser-modal" class="modal-backdrop intent-chooser-modal" data-open="false" role="dialog" aria-modal="true" aria-labelledby="chooser-title">
+      <div class="modal-card chooser-card">
+        <header class="modal-header">
+          <h2 id="chooser-title" class="modal-title">Open With / Share</h2>
+        </header>
+        <div id="chooser-intent-meta" class="chooser-intent-meta"></div>
+        <div id="chooser-candidates" class="chooser-candidates" role="list"></div>
+        <label class="chooser-default-row" for="chooser-default-checkbox">
+          <input type="checkbox" id="chooser-default-checkbox">
+          <span>Always use selected app as default</span>
+        </label>
+        <footer class="modal-footer">
+          <button type="button" id="btn-chooser-cancel" class="btn-secondary">Cancel</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- 3. Security & Permission Prompt Modal -->
+    <div id="permission-modal" class="modal-backdrop permission-modal" data-open="false" data-platform="system" role="dialog" aria-modal="true" aria-labelledby="perm-title">
+      <div class="modal-card permission-card">
+        <header class="modal-header perm-header">
+          <div class="perm-header-left">
+            <span id="perm-platform-badge" class="platform-badge platform-system">SYS</span>
+            <h2 id="perm-title" class="modal-title">Permission Request</h2>
+          </div>
+          <span id="perm-queue-count" class="perm-queue-count" aria-live="polite"></span>
+        </header>
+        <div class="perm-body">
+          <div id="perm-app-info" class="perm-app-info"></div>
+          <div class="perm-detail-grid">
+            <div class="perm-detail-row">
+              <span class="perm-detail-label">Capability</span>
+              <code id="perm-capability" class="perm-code"></code>
+            </div>
+            <div class="perm-detail-row">
+              <span class="perm-detail-label">Native Mapping</span>
+              <code id="perm-native" class="perm-code"></code>
+            </div>
+          </div>
+          <p id="perm-context" class="perm-context"></p>
+        </div>
+        <footer class="modal-footer perm-actions">
+          <button type="button" id="btn-perm-allow" class="btn-primary" data-perm-decision="allow">Allow Always</button>
+          <button type="button" id="btn-perm-allow-once" class="btn-secondary" data-perm-decision="allow_once">Allow Once</button>
+          <button type="button" id="btn-perm-deny-once" class="btn-secondary" data-perm-decision="deny_once">Deny Once</button>
+          <button type="button" id="btn-perm-deny" class="btn-danger" data-perm-decision="deny">Deny Always</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- 4. Drag-and-Drop Package Upload Overlay & Inspector Modal -->
+    <div id="upload-drop-overlay" class="upload-drop-overlay" data-active="false" aria-hidden="true">
+      <div class="upload-drop-card">
+        <div class="upload-drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 36 36" width="42" height="42" fill="none">
+            <path d="M18 24V7m0 0l-6.5 6.5M18 7l6.5 6.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 24v3.5A2.5 2.5 0 0 0 8.5 30h19a2.5 2.5 0 0 0 2.5-2.5V24" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="upload-drop-title">Drop Package to Inspect &amp; Install</div>
+        <div class="upload-drop-subtitle">Android .apk &middot; Windows .exe/.msix/.msi/.bat &middot; iOS .ipa &middot; macOS .app.zip/.dmg/.pkg &middot; Universal .uapp/.wasm</div>
+      </div>
+    </div>
+
+    <div id="upload-modal" class="modal-backdrop upload-modal" data-open="false" role="dialog" aria-modal="true" aria-labelledby="upload-modal-title">
+      <div class="modal-card upload-card">
+        <header class="modal-header">
+          <h2 id="upload-modal-title" class="modal-title">Install Cross-Platform Package</h2>
+          <button type="button" id="btn-upload-close" class="panel-close-btn" aria-label="Close Upload Modal">&times;</button>
+        </header>
+        <input type="file" id="package-file-input" accept=".apk,.exe,.dll,.msix,.appx,.msi,.bat,.cmd,.ipa,.zip,.dmg,.pkg,.uapp,.wasm" hidden>
+        <div id="upload-dropzone" class="upload-dropzone" tabindex="0" role="button" aria-label="Drop package file or click to browse">
+          <div class="upload-dropzone-icon" aria-hidden="true">
+            <svg viewBox="0 0 28 28" width="32" height="32" fill="none">
+              <path d="M14 19V5m0 0L9 10m5-5l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.5 19v2.5A2 2 0 0 0 6.5 23.5h15a2 2 0 0 0 2-2V19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="upload-dropzone-text">Drop any 4-platform or Universal binary package here</div>
+          <div class="upload-dropzone-formats">.apk &middot; .exe &middot; .dll &middot; .msix &middot; .msi &middot; .bat &middot; .ipa &middot; .app.zip &middot; .dmg &middot; .pkg &middot; .uapp &middot; .wasm</div>
+          <button type="button" id="btn-upload-choose" class="btn-secondary">Choose File</button>
+        </div>
+        <div id="upload-inspection-preview" class="upload-inspection-preview"></div>
+        <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
+        <footer class="modal-footer">
+          <button type="button" id="btn-upload-install" class="btn-secondary" disabled>Install</button>
+          <button type="button" id="btn-upload-install-launch" class="btn-primary" disabled>Install &amp; Launch</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Subtle Non-Blocking Brightness Overlay -->
+    <div id="brightness-overlay" class="brightness-overlay" aria-hidden="true"></div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

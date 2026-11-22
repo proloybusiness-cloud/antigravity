@@ -1,0 +1,103 @@
+/* ==========================================================================
+   OmniOS Shell Mode: ANDROID (Material You Shade, Quick Settings, Drawer,
+   Recents PID Stack & 3-Button Nav Bar)
+   ========================================================================== */
+
+#omni-shell[data-shell-mode="android"] {
+  --bar-top-height: 38px;
+  --bar-bottom-height: 54px;
+}
+
+#omni-shell[data-shell-mode="android"][data-theme="dark"] {
+  --wallpaper:
+    radial-gradient(ellipse 75% 65% at 18% 20%, rgba(34, 197, 94, 0.24), transparent 58%),
+    radial-gradient(ellipse 70% 60% at 84% 76%, rgba(16, 185, 129, 0.20), transparent 60%),
+    linear-gradient(160deg, #07100c 0%, #0d1915 52%, #0a1412 100%);
+  --accent: #22c55e;
+  --accent-hover: #4ade80;
+  --accent-soft: rgba(34, 197, 94, 0.20);
+}
+
+#omni-shell[data-shell-mode="android"][data-theme="light"] {
+  --wallpaper:
+    radial-gradient(ellipse 75% 65% at 18% 20%, rgba(34, 197, 94, 0.18), transparent 58%),
+    radial-gradient(ellipse 70% 60% at 84% 76%, rgba(16, 185, 129, 0.14), transparent 60%),
+    linear-gradient(160deg, #eff8f3 0%, #e1f2e8 52%, #edf7f1 100%);
+  --accent: #15803d;
+  --accent-hover: #166534;
+  --accent-soft: rgba(21, 128, 61, 0.14);
+}
+
+/* Android Status Bar */
+#omni-shell[data-shell-mode="android"] #top-bar {
+  display: flex;
+  height: 38px;
+  padding: 0 12px;
+  background: var(--surface-glass-strong);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+#omni-shell[data-shell-mode="android"] #global-menu-bar {
+  display: none;
+}
+
+#omni-shell[data-shell-mode="android"] #dynamic-island[data-active="false"] {
+  display: none;
+}
+
+#omni-shell[data-shell-mode="android"] #dynamic-island[data-active="true"] {
+  display: flex;
+}
+
+/* Show Desktop + Android 3-Button Nav Bar; Hide Dock / Taskbar / iOS Chrome */
+#omni-shell[data-shell-mode="android"] #desktop-backdrop {
+  display: block;
+}
+
+#omni-shell[data-shell-mode="android"] #android-navbar {
+  display: flex;
+}
+
+#omni-shell[data-shell-mode="android"] #floating-dock,
+#omni-shell[data-shell-mode="android"] #win-taskbar,
+#omni-shell[data-shell-mode="android"] #ios-springboard,
+#omni-shell[data-shell-mode="android"] #ios-home-bar {
+  display: none;
+}
+
+/* Material You Pill Aesthetics */
+#omni-shell[data-shell-mode="android"] #btn-notif-shade {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+#omni-shell[data-shell-mode="android"] .omni-window {
+  inset: 10px 14px;
+  width: auto;
+  height: auto;
+  border-radius: 20px;
+}
+
+#omni-shell[data-shell-mode="android"] .android-shade {
+  top: 44px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(460px, calc(100vw - 24px));
+  border-radius: 28px;
+}
+
+#omni-shell[data-shell-mode="android"] .android-app-drawer {
+  bottom: 62px;
+  border-radius: 28px;
+}
+
+#omni-shell[data-shell-mode="android"] .android-navbar {
+  height: 54px;
+}
+
+#omni-shell[data-shell-mode="android"] .android-drawer-btn {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
