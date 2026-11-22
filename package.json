@@ -1,26 +1,36 @@
 {
-  "name": "antigravity-flow",
-  "version": "1.0.0-gen1",
-  "description": "Gen-1 n8n-style automation system: Antigravity (Brain) + Hostinger (Core Memory & 24/7 Engine) + Google Drive (Storage Drive) + GitHub (GitOps & 24/7 Actions).",
+  "name": "antigravity",
+  "version": "2.0.0",
+  "description": "OmniOS — Zero-dependency universal multi-platform OS kernel, 4-platform binary runtimes, SQLite VFS/IPC, and adaptive web desktop (+ legacy Antigravity Flow Gen-1 engine).",
   "type": "module",
+  "main": "os/os.mjs",
+  "bin": {
+    "omnios": "./os/cli/omnios-cli.mjs",
+    "antigravity": "./src/cli.mjs"
+  },
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
-    "start": "node src/server.mjs",
-    "dev": "node --watch src/server.mjs",
-    "cli": "node src/cli.mjs",
-    "test": "node --test test/*.test.mjs",
+    "start": "node os/server/http-server.mjs",
+    "start:lite": "OMNIOS_LITE=1 NODE_OPTIONS=\"--max-old-space-size=256\" node os/server/http-server.mjs",
+    "dev": "node --watch os/server/http-server.mjs",
+    "cli": "node os/cli/omnios-cli.mjs",
+    "sdk:build": "node sdk/build-samples.mjs",
+    "test": "node --test tests/unit/m1-kernel.test.mjs && node --test tests/unit/m2-services.test.mjs && node --test tests/unit/m3-android-windows.test.mjs && node --test tests/unit/m4-ios-macos-universal.test.mjs && node --test tests/unit/m5-server-cli-apps.test.mjs && node --test tests/unit/m6-gui.test.mjs && node --test test/system.test.mjs",
+    "test:unit": "node --test tests/unit/m1-kernel.test.mjs && node --test tests/unit/m2-services.test.mjs && node --test tests/unit/m3-android-windows.test.mjs && node --test tests/unit/m4-ios-macos-universal.test.mjs && node --test tests/unit/m5-server-cli-apps.test.mjs && node --test tests/unit/m6-gui.test.mjs",
+    "test:e2e": "node --test tests/e2e/harness.selftest.mjs && node --test --test-concurrency=1 tests/e2e/tier1/*.test.mjs && node --test --test-concurrency=1 tests/e2e/tier2/*.test.mjs && node --test --test-concurrency=1 tests/e2e/tier3/*.test.mjs && node --test --test-concurrency=1 tests/e2e/tier4/*.test.mjs",
+    "test:e2e:tier1": "node --test --test-concurrency=1 tests/e2e/tier1/*.test.mjs",
+    "test:e2e:tier2": "node --test --test-concurrency=1 tests/e2e/tier2/*.test.mjs",
+    "test:e2e:tier3": "node --test --test-concurrency=1 tests/e2e/tier3/*.test.mjs",
+    "test:e2e:tier4": "node --test --test-concurrency=1 tests/e2e/tier4/*.test.mjs",
+    "test:legacy": "node --test test/system.test.mjs",
+    "start:flow": "node src/server.mjs",
+    "dev:flow": "node --watch src/server.mjs",
+    "cli:flow": "node src/cli.mjs",
     "validate": "node src/cli.mjs workflows validate",
     "run:github-workflows": "node src/cli.mjs workflows run-scheduled --runner github"
   },
-  "keywords": [
-    "automation",
-    "workflow-engine",
-    "n8n",
-    "hostinger",
-    "google-drive",
-    "github-actions",
-    "antigravity"
-  ]
+  "dependencies": {},
+  "devDependencies": {}
 }

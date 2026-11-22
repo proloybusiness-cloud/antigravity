@@ -1,15 +1,15 @@
 services:
-  antigravity-flow:
+  omnios:
     build: .
-    container_name: antigravity-flow-gen1
+    container_name: omnios
     restart: unless-stopped
     ports:
       - "${PORT:-3777}:3777"
-    env_file:
-      - path: .env
-        required: false
+    environment:
+      - PORT=3777
+      - HOST=0.0.0.0
+      - OMNIOS_DATA_DIR=/app/data
+      - OMNIOS_LITE=${OMNIOS_LITE:-0}
     volumes:
-      # Hostinger Core Memory (SQLite) persists across container rebuilds
       - ./data:/app/data
-      # Live-synced GitOps workflow blueprints
-      - ./workflows:/app/workflows
+    mem_limit: 512m

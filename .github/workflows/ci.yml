@@ -1,14 +1,13 @@
-name: CI — Validate Workflows & Test Gen-1
+name: OmniOS & Antigravity CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, omnios-wip]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
-  validate-and-test:
+  test-and-verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -17,10 +16,26 @@ jobs:
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
 
-      - name: Validate all workflow DAG blueprints
-        run: npm run validate
+      - name: Install toolchain & Chromium for binary/GUI tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm nasm
+          if ! command -v chromium >/dev/null 2>&1 && ! command -v google-chrome >/dev/null 2>&1; then
+            sudo apt-get install -y chromium-browser || sudo apt-get install -y chromium
+          fi
 
-      - name: Run full Gen-1 end-to-end test suite
-        run: npm test
+      - name: Validate legacy workflows & tests
+        run: |
+          npm run validate
+          npm run test:legacy
+
+      - name: Build OmniOS SDK sample binaries
+        run: npm run sdk:build
+
+      - name: Run OmniOS M1–M6 unit suites
+        run: npm run test:unit
+
+      - name: Run OmniOS E2E harness & Tiers 1–4 suites
+        run: npm run test:e2e

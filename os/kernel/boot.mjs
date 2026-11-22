@@ -266,6 +266,11 @@ export async function runBootSequence(kernel, { safeMode = false } = {}) {
     if (!kernel.storage || !kernel.storage.isOpen) {
       kernel.storage = new SqliteStorage(kernel.options.dbPath);
     }
+    if (kernel.options.liteMode) {
+      kernel.storage.exec(
+        'PRAGMA cache_size = -1024; PRAGMA temp_store = MEMORY; PRAGMA wal_autocheckpoint = 200;'
+      );
+    }
     kernel.storage.migrate('kernel', KERNEL_MIGRATIONS);
 
     const nowIso = new Date().toISOString();

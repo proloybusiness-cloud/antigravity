@@ -197,14 +197,23 @@ export class OmniKernel {
           ? path.join(options.dataDir, 'omnios.sqlite')
           : ':memory:';
 
+    const liteMode =
+      options.liteMode !== undefined
+        ? Boolean(options.liteMode)
+        : process.env.OMNIOS_LITE === '1' ||
+          String(process.env.OMNIOS_LITE ?? '').toLowerCase() === 'true';
+
     const dmesgCapacity =
       Number.isInteger(options.dmesgCapacity) && options.dmesgCapacity >= 1
         ? options.dmesgCapacity
-        : 2000;
+        : liteMode
+          ? 256
+          : 2000;
 
     this.options = {
       dbPath,
       dataDir: options.dataDir ?? null,
+      liteMode,
       dmesgCapacity,
       baseQuantum:
         Number.isInteger(options.baseQuantum) && options.baseQuantum >= 1
@@ -213,7 +222,9 @@ export class OmniKernel {
       tickMs:
         typeof options.tickMs === 'number' && Number.isFinite(options.tickMs) && options.tickMs > 0
           ? options.tickMs
-          : DEFAULT_TICK_MS,
+          : liteMode
+            ? 50
+            : DEFAULT_TICK_MS,
       autoStartScheduler: Boolean(options.autoStartScheduler),
       panicDumpWriter: typeof options.panicDumpWriter === 'function' ? options.panicDumpWriter : null,
     };
@@ -549,6 +560,7 @@ export class OmniKernel {
 
     return {
       state: this.state,
+      liteMode: this.options.liteMode,
       uptimeMs: this.getUptimeMs(),
       bootReport: this.bootReport,
       services: this.serviceManager.getStatus(),

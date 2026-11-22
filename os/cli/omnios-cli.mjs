@@ -222,6 +222,7 @@ export function parseCliArgs(argv = []) {
     all: false,
     help: false,
     safeMode: false,
+    lite: false,
     includeDismissed: false,
     clearHistory: false,
     append: false,
@@ -273,6 +274,11 @@ export function parseCliArgs(argv = []) {
       continue;
     }
 
+    if (token === '--lite') {
+      flags.lite = true;
+      continue;
+    }
+
     if (BOOLEAN_FLAGS.has(token)) {
       flags[BOOLEAN_FLAGS.get(token)] = true;
       continue;
@@ -290,6 +296,11 @@ export function parseCliArgs(argv = []) {
       const eqIdx = token.indexOf('=');
       const name = token.slice(0, eqIdx);
       const val = token.slice(eqIdx + 1);
+      if (name === '--lite') {
+        const lower = val.trim().toLowerCase();
+        flags.lite = lower === 'true' || lower === '1' || lower === 'yes';
+        continue;
+      }
       if (VALUE_FLAGS.has(name)) {
         flags[VALUE_FLAGS.get(name)] = val;
         continue;
@@ -699,6 +710,7 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
       localOs = createOmniOS({
         dataDir: flags.dataDir ?? null,
         autoStartScheduler: false,
+        ...(flags.lite ? { liteMode: true } : {}),
       });
       bootReport = await localOs.boot({ safeMode: Boolean(flags.safeMode) });
     }

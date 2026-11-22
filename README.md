@@ -1,71 +1,81 @@
-# Antigravity Flow — Generation 1
+# OmniOS (Antigravity Gen-2)
 
-An n8n-style personal automation system built around 4 simple roles:
+**OmniOS** is a lightweight, zero-runtime-dependency, multi-platform OS kernel, binary execution engine, and adaptive desktop/mobile web shell built purely on **Node.js 24** (`node:sqlite`, `node:http`, pure ES modules) and vanilla HTML/CSS/Canvas UI.
 
-1. **You + Antigravity (The Brain):** You tell Antigravity what you want automated. Antigravity plans the steps, builds/edits the workflow blueprint, tests it, and pushes it.
-2. **GitHub (The Blueprint Vault & Courier):** Stores every workflow blueprint safely in [`workflows/`](workflows/), runs automated tests, executes scheduled GitHub jobs 24/7, and ships updates straight to Hostinger.
-3. **Hostinger (Core Memory & 24/7 Engine):** Stays awake day and night running schedules and webhooks, holding fast working memory (SQLite database: counters, state, queues, run logs).
-4. **Google Drive (The Filing Cabinet):** Stores heavy files, generated reports, documents, and automatic snapshots of Core Memory.
+It boots in ~150 ms in ~80 MB RSS and runs even on low-spec ("potato") PCs.
 
-```mermaid
-flowchart LR
-    U["You (Plain English)"] --> B["Antigravity (The Brain)"]
-    B -->|"1. Save & Push Blueprints"| G["GitHub (Blueprint Vault + 24/7 Actions)"]
-    G -->|"2. Auto-Test & Auto-Deploy"| H["Hostinger (24/7 Engine + Core Memory)"]
-    H -->|"3. Fast Working State"| M[("Core Memory (SQLite)")]
-    H -->|"4. Save Reports & Backups"| D[("Google Drive (Filing Cabinet)")]
-    W["External Apps / Webhooks / Clock"] -->|"Triggers 24/7"| H
-```
+## Features
+- **Zero External NPM Runtime Dependencies**: Runs natively on Node.js 24 (`node:sqlite` WAL storage).
+- **4-Platform Binary Compatibility + Universal WASM/WASI**:
+  - **Android**: `.apk` parser (`AXML`, `resources.arsc`, `DEX` + Dalvik bytecode VM, Activity/View/Intent/SharedPreferences bridge).
+  - **Windows**: `.exe`/`.dll` PE32/PE32+ (`x86`/`x86_64` CPU engine, Win32 APIs/GDI, Registry, `.msix`, `.msi`, `.bat`/`.cmd` interpreter).
+  - **Apple (iOS & macOS)**: `.ipa`, `.app.zip`, `.dmg`, `.pkg` (Mach-O 64 + Fat universal, ARM64 CPU engine, ObjC/Darwin XNU ABI, `bplist00`).
+  - **Universal**: `.uapp` / `.wasm` with WASI `fd_write`/`fd_read`/env/args sandboxing.
+- **OS Kernel & Services**: `OmniKernel` boot stages/panic recovery, preemptive `Scheduler`, 64-bit paged `VMM`, `VirtualFileSystem` with symlinks & case-insensitive Windows overlay, `ProcessManager`, `IPCManager` + `IntentRouter` + `NotificationCenter` + `PermissionBroker` + auditing, and `Compositor`.
+- **Adaptive 5-Mode Web UI (`ui/`)**: Instant switching between `Unified`, `Windows`, `macOS`, `iOS` (SpringBoard + Dynamic Island + Control Center), and `Android` (Shade + Quick Settings + Drawer + Recents), plus Spotlight (`Ctrl+Space`), Terminal, Activity Monitor, File Manager, Settings, and App Hub.
+- **Potato-PC / Lite Mode**: Disables GPU-heavy glass blur, layered shadows, and animations in the browser and trims kernel `dmesg` ring, scheduler tick wakeup frequency, and SQLite memory cache on low-spec machines.
 
----
-
-## Run & Test Locally (Zero External Dependencies)
-
-Requires **Node.js 22.13+** (tested on Node 24 using built-in `node:sqlite`).
+## Quick Start (Requires Node.js >= 24)
 
 ```bash
-# Validate all workflow blueprints
-npm run validate
+# Start OmniOS HTTP/WebSocket desktop server on http://127.0.0.1:3777
+npm start
 
-# Run full end-to-end test suite
+# Start OmniOS in lightweight Potato-PC mode (256 MB V8 heap cap, Lite UI & low-RAM kernel/SQLite tuning)
+npm run start:lite
+
+# Or start with Lite mode flags directly
+OMNIOS_LITE=1 node os/server/http-server.mjs
+node os/cli/omnios-cli.mjs boot --serve --lite
+```
+
+Open `http://127.0.0.1:3777/` in your browser (append `?lite=1` to force Lite UI mode, or toggle **Performance Profile -> Lite Mode** in Control Center).
+
+## CLI & SDK
+
+```bash
+# Headless / remote OmniOS CLI
+npm run cli -- --help
+npm run cli -- boot --lite --json
+npm run cli -- exec "uname -a && ls /"
+npm run cli -- ospm list
+
+# Rebuild sample multi-platform packages (.apk, .exe, .ipa, .app.zip, .uapp)
+npm run sdk:build
+```
+
+## Docker (Lean Node 24 Alpine)
+
+```bash
+docker compose up -d
+# Or enable Potato-PC Lite mode:
+OMNIOS_LITE=1 docker compose up -d
+```
+
+Health endpoints: `GET /api/health` and `GET /api/v1/health`.
+
+## Testing
+
+```bash
+# Full OmniOS Unit + Legacy suite (runs sequentially)
 npm test
 
-# Start the Gen-1 Studio + 24/7 Engine + API server
-npm start
+# E2E Verification Suite (Selftest + Tiers 1–4)
+npm run test:e2e
+
+# Individual tiers
+npm run test:e2e:tier1
+npm run test:e2e:tier2
+npm run test:e2e:tier3
+npm run test:e2e:tier4
 ```
 
-Out of the box (without configuring `.env`), Storage Drive runs in **`local-sandbox`** mode (`./data/drive/`) so you can test every single workflow immediately.
+## Legacy Antigravity Flow (Gen-1) Coexistence
+Original workflow automation scripts remain preserved and functional:
 
----
-
-## Included Gen-1 Starter Workflows
-
-| Workflow | Trigger | What It Tests |
-|---|---|---|
-| [`wf-core-heartbeat-backup`](workflows/wf-core-heartbeat-backup.json) | Cron (every 6h) or Manual | **Hostinger Core Memory -> Google Drive:** Increments counter, snapshots all Core Memory, uploads backup JSON to Drive, writes receipt back to Core Memory. |
-| [`wf-webhook-intake-router`](workflows/wf-webhook-intake-router.json) | Live HTTP Webhook | **Smart Branching:** Logs event in Core Memory; if `priority === "high"`, Brain writes a Markdown brief and archives it in Google Drive; otherwise queues it lightly in Core Memory. |
-| [`wf-github-repo-pulse`](workflows/wf-github-repo-pulse.json) | Daily Cron (Hostinger or GitHub Actions) | **24/7 GitHub Automation:** Fetches latest commits/issues, writes a daily digest, updates Core Memory, and saves `reports/github-pulse-latest.md` to Drive. |
-
----
-
-## Switching from Test Sandbox to Live Production
-
-### 1. Connect Live Google Drive
-Copy `.env.example` to `.env` and add either:
-- **Google Service Account** (recommended for 24/7 servers): `GOOGLE_SERVICE_ACCOUNT_JSON` (or `GOOGLE_SERVICE_ACCOUNT_PATH`) + `GOOGLE_DRIVE_FOLDER_ID`
-- **OAuth2 Refresh Token**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID`
-
-The engine automatically switches from `local-sandbox` to `google-drive-live`.
-
-### 2. Deploy 24/7 on Hostinger VPS
 ```bash
-docker compose up -d --build
-```
-Or add `HOSTINGER_HOST`, `HOSTINGER_USER`, and `HOSTINGER_SSH_KEY` as GitHub Repository Secrets so pushing to `main` auto-deploys via [`.github/workflows/deploy-hostinger.yml`](.github/workflows/deploy-hostinger.yml).
-
-### 3. Control Remotely via Brain CLI
-```bash
-ANTIGRAVITY_REMOTE_URL=https://your-hostinger-domain.com \
-ANTIGRAVITY_API_KEY=your-secret \
-node src/cli.mjs status
+npm run start:flow
+npm run cli:flow -- workflows list
+npm run validate
+npm run test:legacy
 ```

@@ -2,23 +2,25 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-# Zero external dependencies — copy source, UI, and GitOps workflows directly
 COPY package.json ./
-COPY src ./src
-COPY public ./public
-COPY workflows ./workflows
+COPY os/ ./os/
+COPY ui/ ./ui/
+COPY sdk/ ./sdk/
+COPY packages/ ./packages/
+COPY src/ ./src/
+COPY public/ ./public/
+COPY workflows/ ./workflows/
 
-# Persistent Hostinger Core Memory & local Drive fallback volume
 RUN mkdir -p /app/data
 
-ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=3777
-ENV DATA_DIR=/app/data
+ENV PORT=3777 \
+    HOST=0.0.0.0 \
+    OMNIOS_DATA_DIR=/app/data \
+    OMNIOS_LITE=0
 
 EXPOSE 3777
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3777/api/health || exit 1
+  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3777) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
-CMD ["node", "src/server.mjs"]
+CMD ["node", "os/server/http-server.mjs"]

@@ -919,6 +919,7 @@ export class OmniHttpServer {
           status: os.kernel.state,
           uptimeMs: os.kernel.getUptimeMs(),
           version: os.version ?? '1.0.0',
+          liteMode: Boolean(os.kernel?.options?.liteMode),
         },
         null,
         method === 'HEAD'
@@ -937,6 +938,7 @@ export class OmniHttpServer {
           status: os.kernel.state,
           uptimeMs: os.kernel.getUptimeMs(),
           version: os.version ?? '1.0.0',
+          liteMode: Boolean(os.kernel?.options?.liteMode),
           services: os.serviceManager.getStatus(),
         },
         null,
