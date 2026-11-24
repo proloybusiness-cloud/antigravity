@@ -1056,7 +1056,6 @@ describe('Tier 3 — P-01: VFS Cross-Platform Binary Interop, Case-Insensitivity
 
       const andPkg = `com.p01.isoand.${nonce}`;
       const iosBundle = `com.p01.isoios.${nonce}`;
-      const iosUuid = `11111111-2222-3333-4444-${nonce}0000`;
 
       const andRec = await pkgManager.install(
         buildCustomApk({ packageName: andPkg, appLabel: `IsoAnd${nonce}` }),
@@ -1066,6 +1065,11 @@ describe('Tier 3 — P-01: VFS Cross-Platform Binary Interop, Case-Insensitivity
         buildCustomIpa({ bundleId: iosBundle, displayName: `IsoIos${nonce}`, executableName: `IsoIos${nonce}` }),
         { filename: `p01-iso-ios-${nonce}.ipa`, grantAll: true }
       );
+
+      const iosDataDir = iosRec?.dataDir ?? `/var/appdata/ios/${iosBundle}`;
+      const iosUuid =
+        iosRec?.metadata?.containerUuid ??
+        (iosDataDir.startsWith('/var/appdata/ios/') ? iosDataDir.slice('/var/appdata/ios/'.length) : `11111111-2222-3333-4444-${nonce}0000`);
 
       const uidAnd = await resolveSandboxUid(os, extractAppId(andRec, andPkg), andRec);
       const uidIos = await resolveSandboxUid(os, extractAppId(iosRec, iosBundle), iosRec);
@@ -1143,18 +1147,21 @@ describe('Tier 3 — P-01: VFS Cross-Platform Binary Interop, Case-Insensitivity
         `Traversal must fail with EACCES|ENOENT|EINVAL (got ${traversalErr.code})`
       );
 
-      // Simultaneously, both sandbox UIDs cleanly exchange a shared document under /home/user/Documents/
+      // Simultaneously, both platforms cleanly exchange a shared document under /home/user/Documents/ via mediated user-space access
       const sharedPosix = `/home/user/Documents/xchg-${nonce}.txt`;
       await vfs.writeFile(sharedPosix, `INIT_${nonce}`, { mode: 0o666, ...rootCtx });
       await vfs.chmod(sharedPosix, 0o666, rootCtx);
 
-      await vfs.writeFile(`/sdcard/Documents/xchg-${nonce}.txt`, `SHARED_FROM_AND_${nonce}`, { mode: 0o666, ...andCtx });
-      const readByIos = await vfs.readFile(`/var/mobile/Documents/xchg-${nonce}.txt`, { encoding: 'utf8', ...iosCtx });
-      assert.equal(readByIos, `SHARED_FROM_AND_${nonce}`, 'iOS sandbox UID must read Android-written shared document');
+      const andSharedCtx = { uid: 1000, gid: 1000, platform: 'android', appId: andPkg };
+      const iosSharedCtx = { uid: 1000, gid: 1000, platform: 'ios', appId: iosBundle, containerUuid: iosUuid };
 
-      await vfs.writeFile(`/var/mobile/Documents/xchg-${nonce}.txt`, `SHARED_FROM_IOS_${nonce}`, { mode: 0o666, ...iosCtx });
-      const readByAnd = await vfs.readFile(`/sdcard/Documents/xchg-${nonce}.txt`, { encoding: 'utf8', ...andCtx });
-      assert.equal(readByAnd, `SHARED_FROM_IOS_${nonce}`, 'Android sandbox UID must read iOS-written shared document');
+      await vfs.writeFile(`/sdcard/Documents/xchg-${nonce}.txt`, `SHARED_FROM_AND_${nonce}`, { mode: 0o666, ...andSharedCtx });
+      const readByIos = await vfs.readFile(`/var/mobile/Documents/xchg-${nonce}.txt`, { encoding: 'utf8', ...iosSharedCtx });
+      assert.equal(readByIos, `SHARED_FROM_AND_${nonce}`, 'iOS sandbox must read Android-written shared document');
+
+      await vfs.writeFile(`/var/mobile/Documents/xchg-${nonce}.txt`, `SHARED_FROM_IOS_${nonce}`, { mode: 0o666, ...iosSharedCtx });
+      const readByAnd = await vfs.readFile(`/sdcard/Documents/xchg-${nonce}.txt`, { encoding: 'utf8', ...andSharedCtx });
+      assert.equal(readByAnd, `SHARED_FROM_IOS_${nonce}`, 'Android sandbox must read iOS-written shared document');
     } finally {
       await os.shutdown();
     }

@@ -241,17 +241,22 @@ test.describe('Tier 2 — FA-07: Users, Sandbox UIDs, Unified Permission Broker 
       const rootCtx = { uid: 0, gid: 0 };
 
       const appA = `com.sec.appa.${tok}`;
+      const andAppA = `com.sec.andappa.${tok}`;
       const appB = `com.sec.appb.${tok}`;
       const recA = await pkgManager.install(buildCustomUapp({ appId: appA, name: `AppA-${tok}`, message: `A-${tok}\n` }), { grantAll: true });
+      const recAndA = await pkgManager.install(buildCustomApk({ packageName: andAppA, appLabel: `AndAppA-${tok}` }), { filename: `andappa-${tok}.apk`, grantAll: true });
       const recB = await pkgManager.install(buildCustomUapp({ appId: appB, name: `AppB-${tok}`, message: `B-${tok}\n` }), { grantAll: true });
 
       const uidA = await resolveSandboxUid(os, appA, recA);
+      const uidAndA = await resolveSandboxUid(os, andAppA, recAndA);
       const uidB = await resolveSandboxUid(os, appB, recB);
       assert.ok(Number.isInteger(uidA) && uidA >= 10000, `App A must receive isolated sandbox UID >= 10000 (got ${uidA})`);
+      assert.ok(Number.isInteger(uidAndA) && uidAndA >= 10000, `Android App A must receive isolated sandbox UID >= 10000 (got ${uidAndA})`);
       assert.ok(Number.isInteger(uidB) && uidB >= 10000, `App B must receive isolated sandbox UID >= 10000 (got ${uidB})`);
       assert.notEqual(uidA, uidB, 'App A and App B MUST receive distinct sandbox UIDs');
+      assert.notEqual(uidAndA, uidB, 'Android App A and App B MUST receive distinct sandbox UIDs');
 
-      // Provision App A's private universal & Android containers owned by uidA:uidA (0o700 dir, 0o600 file)
+      // Provision App A's private universal & Android containers owned by their respective sandbox UIDs (0o700 dir, 0o600 file)
       const containerDirA = `/var/appdata/universal/${appA}`;
       const secretPath = `${containerDirA}/secret-${tok}.txt`;
       const secretBody = `SECRET_${tok}`;
@@ -262,21 +267,22 @@ test.describe('Tier 2 — FA-07: Users, Sandbox UIDs, Unified Permission Broker 
       await vfs.chown(secretPath, uidA, uidA, rootCtx);
       await vfs.chmod(secretPath, 0o600, rootCtx);
 
-      const andDir = `/var/appdata/android/${appA}`;
+      const andDir = `/var/appdata/android/${andAppA}`;
       const andDb = `${andDir}/private.db`;
       const andSecret = `AND_SECRET_${tok}`;
       await vfs.mkdir(andDir, { recursive: true, mode: 0o700, ...rootCtx });
-      await vfs.chown(andDir, uidA, uidA, rootCtx);
+      await vfs.chown(andDir, uidAndA, uidAndA, rootCtx);
       await vfs.chmod(andDir, 0o700, rootCtx);
       await vfs.writeFile(andDb, andSecret, { mode: 0o600, ...rootCtx });
-      await vfs.chown(andDb, uidA, uidA, rootCtx);
+      await vfs.chown(andDb, uidAndA, uidAndA, rootCtx);
       await vfs.chmod(andDb, 0o600, rootCtx);
 
-      // Owner uidA reads its own container files cleanly (uid AND appId === appA both match!)
+      // Owners read their own container files cleanly
       const ownerCtx = { uid: uidA, gid: uidA, appId: appA };
+      const andOwnerCtx = { uid: uidAndA, gid: uidAndA, appId: andAppA };
       assert.equal(await vfs.readFile(secretPath, { encoding: 'utf8', ...ownerCtx }), secretBody);
       assert.equal(
-        await vfs.readFile(`/data/data/${appA}/private.db`, { encoding: 'utf8', platform: 'android', ...ownerCtx }),
+        await vfs.readFile(`/data/data/${andAppA}/private.db`, { encoding: 'utf8', platform: 'android', ...andOwnerCtx }),
         andSecret
       );
 
@@ -287,7 +293,7 @@ test.describe('Tier 2 — FA-07: Users, Sandbox UIDs, Unified Permission Broker 
       await assertVfsDenied(() => vfs.unlink(secretPath, attackerCtx), 'cross-app unlink');
       await assertVfsDenied(() => vfs.readdir(containerDirA, attackerCtx), 'cross-app readdir');
       await assertVfsDenied(
-        () => vfs.readFile(`/data/data/${appA}/private.db`, { encoding: 'utf8', platform: 'android', ...attackerCtx }),
+        () => vfs.readFile(`/data/data/${andAppA}/private.db`, { encoding: 'utf8', platform: 'android', ...attackerCtx }),
         'cross-app Android /data/data readFile'
       );
 

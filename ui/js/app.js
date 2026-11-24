@@ -187,6 +187,7 @@ async function bootOmniUI() {
   });
 
   async function hydrateNonSnapshotSubsystems() {
+    const cfgSeq = shellController.getConfigSyncSeq();
     const [pkgR, catR, cfgR, notifR, procR, permR] = await Promise.allSettled([
       client.listPackages(),
       client.getCatalog(),
@@ -197,7 +198,7 @@ async function bootOmniUI() {
     ]);
 
     if (cfgR.status === 'fulfilled' && cfgR.value) {
-      shellController.applySystemConfig(cfgR.value.system ?? cfgR.value.values ?? {});
+      shellController.applySystemConfig(cfgR.value.system ?? cfgR.value.values ?? {}, cfgSeq);
     }
 
     const pkgVal = pkgR.status === 'fulfilled' ? pkgR.value : null;

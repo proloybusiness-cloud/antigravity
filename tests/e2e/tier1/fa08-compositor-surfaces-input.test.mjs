@@ -125,7 +125,10 @@ async function launchSystemWindowApp(api) {
   }
   if (!launchRes.ok) {
     const pkgRes = await api.get('/api/v1/packages');
-    const pkgs = unwrapList(pkgRes.json);
+    const pkgs = [
+      ...unwrapList(pkgRes.json, ['packages', 'windows', 'items', 'data']),
+      ...unwrapList(pkgRes.json, ['systemApps']),
+    ];
     const sysPkg = pkgs.find((p) => String(p.appId ?? p.id).startsWith('sys.')) ?? pkgs[0];
     assert.ok(sysPkg, 'Expected at least one built-in system app in /api/v1/packages');
     appId = sysPkg.appId ?? sysPkg.id;

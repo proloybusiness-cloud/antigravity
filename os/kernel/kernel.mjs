@@ -190,11 +190,15 @@ function safeJsonParse(raw, fallback = {}) {
 
 export class OmniKernel {
   constructor(options = {}) {
+    const rawDataDir =
+      typeof options.dataDir === 'string' && options.dataDir.length > 0 && options.dataDir !== ':memory:'
+        ? options.dataDir
+        : null;
     const dbPath =
       typeof options.dbPath === 'string' && options.dbPath.length > 0
         ? options.dbPath
-        : typeof options.dataDir === 'string' && options.dataDir.length > 0
-          ? path.join(options.dataDir, 'omnios.sqlite')
+        : rawDataDir
+          ? path.join(rawDataDir, 'omnios.sqlite')
           : ':memory:';
 
     const liteMode =
@@ -212,7 +216,7 @@ export class OmniKernel {
 
     this.options = {
       dbPath,
-      dataDir: options.dataDir ?? null,
+      dataDir: rawDataDir,
       liteMode,
       dmesgCapacity,
       baseQuantum:
@@ -328,8 +332,10 @@ export class OmniKernel {
       matched.push({ ...entry, meta: { ...entry.meta } });
     }
 
-    const maxEntries = Number.isInteger(limit) && limit >= 0 ? limit : 200;
-    if (maxEntries === 0) return [];
+    if (typeof limit === 'number' && Number.isFinite(limit) && limit <= 0) {
+      return [];
+    }
+    const maxEntries = Number.isInteger(limit) && limit > 0 ? limit : 200;
     return matched.length <= maxEntries ? matched : matched.slice(-maxEntries);
   }
 

@@ -287,7 +287,12 @@ async function discoverSystemAppsHttp(api) {
   const entries = [];
   const ingest = (src, fromInstalled) => {
     const arr = unwrapExplicitArray(src, ['packages', 'apps', 'catalog', 'items', 'data', 'entries']);
-    const list = arr ?? (src && typeof src === 'object' ? Object.entries(src).map(([k, v]) => (typeof v === 'object' && v ? { id: k, ...v } : v)) : []);
+    const sysArr = unwrapExplicitArray(src, ['systemApps']);
+    const combined = [...(arr ?? []), ...(sysArr ?? [])];
+    const list =
+      arr !== null || sysArr !== null
+        ? combined
+        : (src && typeof src === 'object' ? Object.entries(src).map(([k, v]) => (typeof v === 'object' && v ? { id: k, ...v } : v)) : []);
     for (const item of list) {
       if (typeof item === 'string' && item.trim()) {
         entries.push({ appId: item.trim(), name: item.trim(), platform: '', isBuiltin: false, fromInstalled });
@@ -375,6 +380,7 @@ async function collectSharedPrefsCandidates(sp) {
     ['com.android.system', 'system'],
     ['com.android.settings', 'system'],
     ['com.android.settings', 'settings'],
+    ['com.omnios.system', 'system_settings'],
     ['com.omnios.system', 'system'],
     ['com.omnios.system', 'settings'],
     ['com.omnios.os', 'system'],

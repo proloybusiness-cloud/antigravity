@@ -1826,6 +1826,39 @@ export function parseMachO(buffer, { preferredArch = 'arm64', allowEncrypted = f
     entryVA = Number(unixThread.pc);
   }
 
+  const extractSectionCStrings = (sectName) => {
+    const out = [];
+    const seen = new Set();
+    for (const s of allSections) {
+      if (!s || s.sectname !== sectName) continue;
+      const startOff = Number(s.offset);
+      const secSize = Number(s.size);
+      if (!Number.isFinite(startOff) || !Number.isFinite(secSize) || startOff <= 0 || secSize <= 0) {
+        continue;
+      }
+      if (startOff >= bytes.byteLength) continue;
+      const endOff = Math.min(bytes.byteLength, startOff + Math.min(secSize, 1024 * 1024));
+      let cursor = startOff;
+      while (cursor < endOff && out.length < 4096) {
+        if (bytes[cursor] === 0) {
+          cursor += 1;
+          continue;
+        }
+        let nul = cursor;
+        while (nul < endOff && bytes[nul] !== 0) nul += 1;
+        const str = readCString(bytes, cursor, endOff);
+        if (str && !seen.has(str)) {
+          seen.add(str);
+          out.push(str);
+        }
+        cursor = nul + 1;
+      }
+    }
+    return out;
+  };
+  const objcClasses = extractSectionCStrings('__objc_classname');
+  const objcSelectors = extractSectionCStrings('__objc_methname');
+
   return {
     isFat: false,
     littleEndian: le,
@@ -1869,6 +1902,8 @@ export function parseMachO(buffer, { preferredArch = 'arm64', allowEncrypted = f
     chainedFixups,
     codeSignature,
     entitlements: codeSignature?.entitlements ?? null,
+    objcClasses,
+    objcSelectors,
     rawBytes: bytes,
   };
 }

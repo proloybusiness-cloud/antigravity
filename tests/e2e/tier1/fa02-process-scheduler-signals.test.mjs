@@ -645,7 +645,7 @@ describe('Tier 1 — FA-02: Process Lifecycle, Threads, Scheduler, Signals & Str
 
       const treeRes = await srv.api.get('/api/v1/processes/tree');
       assert.equal(treeRes.status, 200);
-      const tree = unwrapObject(treeRes.json, ['tree', 'root', 'data']);
+      const tree = treeRes.json?.tree ?? unwrapObject(treeRes.json, ['tree', 'root', 'data']);
       assert.ok(findInTree(tree, 1), 'GET /api/v1/processes/tree must contain PID 1');
 
       const p1Res = await srv.api.get('/api/v1/processes/1');
@@ -661,7 +661,10 @@ describe('Tier 1 — FA-02: Process Lifecycle, Threads, Scheduler, Signals & Str
       // Launch a built-in system app to obtain a live user PID (> 1)
       const pkgRes = await srv.api.get('/api/v1/packages');
       assert.equal(pkgRes.status, 200);
-      const pkgs = unwrapList(pkgRes.json);
+      const pkgs = [
+        ...unwrapList(pkgRes.json),
+        ...unwrapList(pkgRes.json, ['systemApps']),
+      ];
       const targetPkg =
         pkgs.find((p) => (p.appId ?? p.id) === 'sys.notes') ??
         pkgs.find((p) => (p.appId ?? p.id) === 'sys.terminal') ??

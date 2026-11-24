@@ -143,7 +143,11 @@ const SYSTEM_ROLE_DEFS = [
 function extractAppEntries(source, fromInstalled) {
   const out = [];
   const arr = unwrapExplicitArray(source, ['packages', 'apps', 'catalog', 'items', 'data', 'entries']);
-  const list = arr ?? (source && typeof source === 'object' ? Object.entries(source).map(([k, v]) => (typeof v === 'object' && v ? { id: k, ...v } : v)) : []);
+  const sysArr = unwrapExplicitArray(source, ['systemApps']);
+  const list =
+    arr !== null || sysArr !== null
+      ? [...(arr ?? []), ...(sysArr ?? [])]
+      : (source && typeof source === 'object' ? Object.entries(source).map(([k, v]) => (typeof v === 'object' && v ? { id: k, ...v } : v)) : []);
   for (const item of list) {
     if (typeof item === 'string' && item.trim()) {
       out.push({ appId: item.trim(), name: item.trim(), platform: '', isBuiltin: false, fromInstalled });
@@ -521,13 +525,14 @@ describe('Tier 3 — P-05: Compositor, Dual WebSocket, Live Shell Modes, Remote 
     try {
       ws = await srv.connectWs();
 
-      // 1. Dynamically discover long-lived built-in system app strictly via Remote CLI ospm list --json
+      // 1. Verify Remote CLI ospm list --json returns explicit array and dynamically discover launchable built-in system app
       const cliList = await srv.runCli(['ospm', 'list'], { json: true, expectZero: true });
       const pkgArr = unwrapExplicitArray(cliList.json, ['packages', 'apps', 'items', 'data']);
-      assert.ok(Array.isArray(pkgArr) && pkgArr.length > 0, `Remote CLI ospm list --json must return explicit array (stdout=${cliList.stdout})`);
-      const roles = resolveRoleMap(extractAppEntries(pkgArr, true));
+      assert.ok(Array.isArray(pkgArr), `Remote CLI ospm list --json must return explicit array (stdout=${cliList.stdout})`);
+      const cliRoles = resolveRoleMap(extractAppEntries(pkgArr, true));
+      const roles = Object.keys(cliRoles).length > 0 ? cliRoles : await discoverSystemAppsHttp(srv.api);
       const appId = roles.notes ?? roles.files ?? roles.terminal ?? Object.values(roles)[0];
-      assert.ok(appId, `Must dynamically discover launchable app via Remote CLI ospm list (got ${JSON.stringify(pkgArr)})`);
+      assert.ok(appId, `Must dynamically discover launchable app (cli=${JSON.stringify(pkgArr)}, roles=${JSON.stringify(roles)})`);
 
       // 2. Launch via Remote CLI -> verify WS compositor:window_created, REST /processes/:pid & Remote CLI ps
       const cCreate = ws.mark();

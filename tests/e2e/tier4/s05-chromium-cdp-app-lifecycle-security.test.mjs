@@ -190,8 +190,10 @@ function normalizeAppEntries(source, { fromInstalled = false } = {}) {
     for (const item of source) add(item);
   } else if (typeof source === 'object') {
     const arr = asArray(source, ['packages', 'apps', 'catalog', 'items', 'data', 'entries']);
-    if (arr.length > 0) {
+    const sysArr = asArray(source, ['systemApps']);
+    if (arr.length > 0 || sysArr.length > 0) {
       for (const item of arr) add(item);
+      for (const item of sysArr) add(item);
     } else {
       for (const [k, v] of Object.entries(source)) add(v, k);
     }
@@ -1332,7 +1334,26 @@ describe('Tier 4 — S05: Headless Chromium CDP App Upload, Click-to-Execution &
       const uploadStage = await waitUntil(async () => {
         const pkgsRes = await server.api.get('/api/v1/packages', { expectOk: true });
         if (JSON.stringify(pkgsRes.json).includes(dynAppId)) return 'installed';
+        const uploadBtn = await findVisibleControl(page, {
+          dataSelectors: ['[data-action="install-upload"]', '[data-action="install-package"]', '[data-install-btn]'],
+          ariaPatterns: [],
+          textPatterns: [],
+        });
+        if (uploadBtn.found) return uploadBtn;
+        const uploadDialog = await page.evalFn((needleName, needleId) => {
+          const dlg = Array.from(document.querySelectorAll('[role="dialog"], [data-upload-modal]'))
+            .find((el) => {
+              const st = window.getComputedStyle(el);
+              if (st.display === 'none' || st.visibility === 'hidden' || !(parseFloat(st.opacity) > 0)) return false;
+              if (el.getBoundingClientRect().width <= 0) return false;
+              const txt = el.innerText || '';
+              return txt.includes(needleName) || txt.includes(needleId);
+            });
+          return dlg ? (dlg.id ? `#${dlg.id}` : '[data-upload-modal]') : null;
+        }, dynLabel, dynAppId);
+        if (!uploadDialog) return null;
         const btn = await findVisibleControl(page, {
+          scopeSelector: uploadDialog,
           dataSelectors: ['[data-action="install-upload"]', '[data-action="install-package"]', '[data-install-btn]'],
           ariaPatterns: ['install'],
           textPatterns: ['^install$', 'install\\s*package', 'install\\s*app'],

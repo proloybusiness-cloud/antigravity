@@ -657,7 +657,7 @@ test.describe('Tier 2 — FA-02: Process Lifecycle, Scheduler, Signals & Streams
       // Dynamically discover a launchable package: /api/v1/packages -> /api/v1/packages/catalog -> install .uapp
       const pkgsRes = await srv.api.get('/api/v1/packages');
       assert.equal(pkgsRes.status, 200, 'GET /api/v1/packages must return 200');
-      let pkgs = unwrapListStrict(pkgsRes.json, ['packages', 'apps', 'items']) ?? [];
+      let pkgs = unwrapListStrict(pkgsRes.json, ['packages', 'systemApps', 'apps', 'items']) ?? [];
 
       if (pkgs.length === 0) {
         const catRes = await srv.api.get('/api/v1/packages/catalog');

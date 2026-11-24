@@ -513,7 +513,7 @@ export class ProcFsMount {
           const maxRegions = Math.min(stats.regions.length, 65536);
           for (let i = 0; i < maxRegions; i += 1) {
             const r = stats.regions[i];
-            if (r && typeof r === 'object') {
+            if (r && typeof r === 'object' && r.kind !== 'guard') {
               regions.push(r);
             }
           }

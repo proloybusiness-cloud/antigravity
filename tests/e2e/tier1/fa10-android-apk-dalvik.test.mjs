@@ -436,8 +436,8 @@ describe('Tier 1 — FA-10: Android Runtime (APK, AXML/ARSC, DEX, Dalvik VM & Fr
       const wins = compositor.getSnapshot().windows ?? [];
       const win35 = wins.find((w) => w.appId === pkg35 || w.pid === l35.pid);
       const win39 = wins.find((w) => w.appId === pkg39 || w.pid === l39.pid);
-      assert.ok(win35 && treeContainsText(win35.uiTree, expected35), 'Expected DEX v035 window uiTree to display computed sum');
-      assert.ok(win39 && treeContainsText(win39.uiTree, expected39), 'Expected DEX v039 window uiTree to display computed diff');
+      assert.ok(win35 && treeContainsText(win35.uiTree ?? win35.surface?.uiTree, expected35), 'Expected DEX v035 window uiTree to display computed sum');
+      assert.ok(win39 && treeContainsText(win39.uiTree ?? win39.surface?.uiTree, expected39), 'Expected DEX v039 window uiTree to display computed diff');
 
       await pkgManager.stop(l35.pid);
       await pkgManager.stop(l39.pid);
@@ -503,8 +503,8 @@ describe('Tier 1 — FA-10: Android Runtime (APK, AXML/ARSC, DEX, Dalvik VM & Fr
       const wins = compositor.getSnapshot().windows ?? [];
       const winAdd = wins.find((w) => w.appId === pkgAdd || w.pid === lAdd.pid);
       const winMul = wins.find((w) => w.appId === pkgMul || w.pid === lMul.pid);
-      assert.ok(winAdd && treeContainsText(winAdd.uiTree, expectedAdd), 'Expected add-int TextView in uiTree');
-      assert.ok(winMul && treeContainsText(winMul.uiTree, expectedMul), 'Expected mul-int TextView in uiTree');
+      assert.ok(winAdd && treeContainsText(winAdd.uiTree ?? winAdd.surface?.uiTree, expectedAdd), 'Expected add-int TextView in uiTree');
+      assert.ok(winMul && treeContainsText(winMul.uiTree ?? winMul.surface?.uiTree, expectedMul), 'Expected mul-int TextView in uiTree');
 
       await pkgManager.stop(lAdd.pid);
       await pkgManager.stop(lMul.pid);
@@ -586,7 +586,7 @@ describe('Tier 1 — FA-10: Android Runtime (APK, AXML/ARSC, DEX, Dalvik VM & Fr
       const sendWin = wins.find((w) => w.appId === sendPkg || w.pid === sendLaunched.pid);
       assert.ok(sendWin, `Expected Android Compositor window for ${sendPkg}`);
       assert.equal(sendWin.platform, 'android');
-      assert.ok(treeContainsText(sendWin.uiTree, expectedSum), `Expected TextView with ${expectedSum} in uiTree`);
+      assert.ok(treeContainsText(sendWin.uiTree ?? sendWin.surface?.uiTree, expectedSum), `Expected TextView with ${expectedSum} in uiTree`);
 
       // 2. SharedPreferences
       const prefs = configStore.sharedPrefs.getAll(sendPkg, 'bridge_prefs');
@@ -618,7 +618,13 @@ describe('Tier 1 — FA-10: Android Runtime (APK, AXML/ARSC, DEX, Dalvik VM & Fr
       );
 
       await pkgManager.stop(sendLaunched.pid);
-      if (recvProc) await pkgManager.stop(recvProc.pid).catch(() => {});
+      if (recvProc) {
+        try {
+          await pkgManager.stop(recvProc.pid);
+        } catch {
+          // receiver already exited
+        }
+      }
     } finally {
       if (osHandle) await osHandle.shutdown().catch(() => {});
     }
@@ -663,7 +669,8 @@ describe('Tier 1 — FA-10: Android Runtime (APK, AXML/ARSC, DEX, Dalvik VM & Fr
         const win = wins.find((w) => w.pid === launched.pid || w.appId === appId);
         assert.ok(win, `Expected Android Compositor window for ${sampleName}`);
         assert.equal(win.platform, 'android');
-        assert.ok(win.uiTree && Object.keys(win.uiTree).length > 0, `Expected non-empty uiTree for ${sampleName}`);
+        const winUiTree = win.uiTree ?? win.surface?.uiTree;
+        assert.ok(winUiTree && Object.keys(winUiTree).length > 0, `Expected non-empty uiTree for ${sampleName}`);
 
         await pkgManager.stop(launched.pid);
       }
@@ -688,6 +695,10 @@ describe('Tier 1 — FA-10: Android Runtime (APK, AXML/ARSC, DEX, Dalvik VM & Fr
       const apkBytes = buildCustomApk({
         packageName: pkgName,
         appLabel: `RestApk-${tok}`,
+        permissions: [
+          'android.permission.WRITE_EXTERNAL_STORAGE',
+          'android.permission.POST_NOTIFICATIONS',
+        ],
         computeA: a,
         computeB: b,
         computeOp: 'add',
@@ -735,7 +746,7 @@ describe('Tier 1 — FA-10: Android Runtime (APK, AXML/ARSC, DEX, Dalvik VM & Fr
         const snap = await srv.api.get('/api/v1/compositor/snapshot', { expectOk: true });
         const wins = asArray(snap.json, ['windows']);
         const win = wins.find((w) => w.appId === pkgName || w.pid === pid);
-        return Boolean(win && treeContainsText(win.uiTree, expectedSum));
+        return Boolean(win && treeContainsText(win.uiTree ?? win.surface?.uiTree, expectedSum));
       }, { timeoutMs: 6000, label: `Compositor window uiTree containing ${expectedSum}` });
 
       await waitUntil(async () => {

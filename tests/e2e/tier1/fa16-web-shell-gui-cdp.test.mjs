@@ -146,8 +146,10 @@ function normalizeAppEntries(source, { fromInstalled = false } = {}) {
     for (const item of source) add(item);
   } else if (typeof source === 'object') {
     const arr = asArray(source, ['packages', 'apps', 'catalog', 'items', 'data', 'entries']);
-    if (arr.length > 0) {
+    const sysArr = asArray(source, ['systemApps']);
+    if (arr.length > 0 || sysArr.length > 0) {
       for (const item of arr) add(item);
+      for (const item of sysArr) add(item);
     } else {
       for (const [k, v] of Object.entries(source)) add(v, k);
     }
@@ -1660,19 +1662,35 @@ describe('Tier 1 — FA-16: Live Adaptive 5-Mode Web/Desktop Shell GUI (Headless
       );
 
       await clickSemanticControl(page, {
-        dataSelectors: [`[data-app-id="${appIdA}"]`, `[data-choice-app="${appIdA}"]`],
+        dataSelectors: [
+          `[data-choice-app="${appIdA}"]`,
+          `[data-chooser-app-id="${appIdA}"]`,
+          `[role="dialog"] [data-app-id="${appIdA}"]`,
+          `[data-app-id="${appIdA}"]`,
+        ],
         ariaPatterns: [nameA],
         textPatterns: [nameA],
       }, `Share Sheet choice ${nameA}`);
 
-      // Verify Share Sheet modal genuinely dismisses (nameB gone from visible body text)
+      // Verify Share Sheet modal genuinely dismisses (scoped strictly to visible modal elements)
       await page.waitForFunction((b) => {
-        if ((document.body.innerText || '').includes(b)) return false;
-        const modal = document.querySelector('[data-share-sheet], [data-intent-chooser], [role="dialog"]');
-        if (modal && window.getComputedStyle(modal).display !== 'none' && (modal.innerText || '').includes(b)) {
-          return false;
+        function isTrulyVisible(el) {
+          if (!el || el.nodeType !== 1) return false;
+          const st = window.getComputedStyle(el);
+          if (st.display === 'none' || st.visibility === 'hidden' || !(parseFloat(st.opacity) > 0)) return false;
+          let p = el.parentElement;
+          while (p && p.nodeType === 1) {
+            const ps = window.getComputedStyle(p);
+            if (ps.display === 'none' || ps.visibility === 'hidden' || !(parseFloat(ps.opacity) > 0)) return false;
+            p = p.parentElement;
+          }
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
         }
-        return true;
+        const visibleModals = Array.from(
+          document.querySelectorAll('[data-share-sheet], [data-intent-chooser], [role="dialog"], [role="alertdialog"]')
+        ).filter(isTrulyVisible);
+        return !visibleModals.some((m) => (m.innerText || '').includes(b));
       }, { timeoutMs: 5000, args: [nameB] });
 
       // Verify real backend dispatch/execution proof that chosen appIdA was launched
@@ -1798,7 +1816,26 @@ describe('Tier 1 — FA-16: Live Adaptive 5-Mode Web/Desktop Shell GUI (Headless
       const maybeInstallBtn = await waitUntil(async () => {
         const pkgsRes = await server.api.get('/api/v1/packages', { expectOk: true });
         if (JSON.stringify(pkgsRes.json).includes(uploadAppId)) return 'installed';
+        const uploadBtn = await findVisibleControl(page, {
+          dataSelectors: ['[data-action="install-upload"]', '[data-action="install-package"]', '[data-install-btn]'],
+          ariaPatterns: [],
+          textPatterns: [],
+        });
+        if (uploadBtn.found) return uploadBtn;
+        const uploadDialog = await page.evalFn((needleName, needleId) => {
+          const dlg = Array.from(document.querySelectorAll('[role="dialog"], [data-upload-modal]'))
+            .find((el) => {
+              const st = window.getComputedStyle(el);
+              if (st.display === 'none' || st.visibility === 'hidden' || !(parseFloat(st.opacity) > 0)) return false;
+              if (el.getBoundingClientRect().width <= 0) return false;
+              const txt = el.innerText || '';
+              return txt.includes(needleName) || txt.includes(needleId);
+            });
+          return dlg ? (dlg.id ? `#${dlg.id}` : '[data-upload-modal]') : null;
+        }, uploadName, uploadAppId);
+        if (!uploadDialog) return null;
         const btn = await findVisibleControl(page, {
+          scopeSelector: uploadDialog,
           dataSelectors: ['[data-action="install-upload"]', '[data-action="install-package"]', '[data-install-btn]'],
           ariaPatterns: ['install'],
           textPatterns: ['^install$', 'install\\s*package', 'install\\s*app'],

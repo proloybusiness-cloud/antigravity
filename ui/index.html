@@ -490,10 +490,10 @@
           <p id="perm-context" class="perm-context"></p>
         </div>
         <footer class="modal-footer perm-actions">
-          <button type="button" id="btn-perm-allow" class="btn-primary" data-perm-decision="allow">Allow Always</button>
-          <button type="button" id="btn-perm-allow-once" class="btn-secondary" data-perm-decision="allow_once">Allow Once</button>
-          <button type="button" id="btn-perm-deny-once" class="btn-secondary" data-perm-decision="deny_once">Deny Once</button>
-          <button type="button" id="btn-perm-deny" class="btn-danger" data-perm-decision="deny">Deny Always</button>
+          <button type="button" id="btn-perm-allow" class="btn-primary" data-perm-decision="allow" data-permission-decision="allow">Allow Always</button>
+          <button type="button" id="btn-perm-allow-once" class="btn-secondary" data-perm-decision="allow_once" data-permission-decision="allow_once">Allow Once</button>
+          <button type="button" id="btn-perm-deny-once" class="btn-secondary" data-perm-decision="deny_once" data-permission-decision="deny_once">Deny Once</button>
+          <button type="button" id="btn-perm-deny" class="btn-danger" data-perm-decision="deny" data-permission-decision="deny">Deny Always</button>
         </footer>
       </div>
     </div>
@@ -532,9 +532,9 @@
         </div>
         <div id="upload-inspection-preview" class="upload-inspection-preview"></div>
         <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
-        <footer class="modal-footer">
-          <button type="button" id="btn-upload-install" class="btn-secondary" disabled>Install</button>
-          <button type="button" id="btn-upload-install-launch" class="btn-primary" disabled>Install &amp; Launch</button>
+        <footer id="upload-modal-footer" class="modal-footer" hidden>
+          <button type="button" id="btn-upload-install" class="btn-secondary" data-action="install-upload" hidden disabled>Install</button>
+          <button type="button" id="btn-upload-install-launch" class="btn-primary" hidden disabled>Install &amp; Launch</button>
         </footer>
       </div>
     </div>

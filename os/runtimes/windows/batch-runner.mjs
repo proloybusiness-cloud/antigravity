@@ -845,14 +845,22 @@ function extractRedirections(cmd) {
       if (c === '(') { depth += 1; continue; }
       if (c === ')') { depth = Math.max(0, depth - 1); continue; }
       if (depth === 0) {
-        if (c === '2' && cmd[i + 1] === '>' && cmd[i + 2] === '&' && cmd[i + 3] === '1') {
+        const prevCh = i > 0 ? cmd[i - 1] : '';
+        const atTokenStart =
+          i === 0 ||
+          isBatchWhitespace(prevCh) ||
+          prevCh === '&' ||
+          prevCh === '|' ||
+          prevCh === '(' ||
+          prevCh === ')';
+        if (atTokenStart && c === '2' && cmd[i + 1] === '>' && cmd[i + 2] === '&' && cmd[i + 3] === '1') {
           if (i > segStart) parts.push(cmd.slice(segStart, i));
           redirs.stderrToStdout = true;
           i += 3;
           segStart = i + 1;
           continue;
         }
-        if ((c === '1' || c === '2') && cmd[i + 1] === '>') {
+        if (atTokenStart && (c === '1' || c === '2') && cmd[i + 1] === '>') {
           if (i > segStart) parts.push(cmd.slice(segStart, i));
           const isErr = c === '2';
           const isAppend = cmd[i + 2] === '>';
@@ -1820,16 +1828,22 @@ export class BatchExecutionContext {
           budget.promptCount += 1;
         }
         budget.auditedKeys.add(dedupKey);
+        const hasInteractivePrompt =
+          typeof permissions.hasInteractivePromptConsumer === 'function'
+            ? permissions.hasInteractivePromptConsumer()
+            : typeof permissions._promptHandler === 'function';
         try {
           const req = {
             appId,
             pid: this.pcb?.pid ?? null,
             platform: 'windows',
             capability,
-            timeoutMs: 0,
           };
           if (sanitizedContext) {
             req.context = sanitizedContext;
+          }
+          if (!hasInteractivePrompt) {
+            req.timeoutMs = 0;
           }
           const p = permissions.checkPermission(req);
           if (p && typeof p.catch === 'function') p.catch((err) => { void err; });

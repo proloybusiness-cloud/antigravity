@@ -417,7 +417,9 @@ async function stepUntil(osHandle, pred, minSteps = 120) {
 
 async function discoverBuiltinAppHttp(api) {
   const pkgRes = await api.get('/api/v1/packages', { expectOk: true });
-  const arr = unwrapExplicitArray(pkgRes.json, ['packages', 'apps', 'items', 'data']) ?? [];
+  const pkgArr = unwrapExplicitArray(pkgRes.json, ['packages', 'apps', 'items', 'data']) ?? [];
+  const sysArr = unwrapExplicitArray(pkgRes.json, ['systemApps']) ?? [];
+  const arr = [...pkgArr, ...sysArr];
   const match =
     arr.find((p) => /omninotes|notes|omniterm|terminal/i.test(`${p?.appId ?? p?.id ?? ''} ${p?.name ?? p?.title ?? ''}`) && !/sharer/i.test(`${p?.appId ?? ''} ${p?.name ?? ''}`)) ??
     arr.find((p) => p?.builtin || p?.builtIn || p?.isSystem || p?.system || p?.platform === 'system') ??

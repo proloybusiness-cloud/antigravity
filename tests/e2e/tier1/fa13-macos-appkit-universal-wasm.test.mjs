@@ -465,8 +465,10 @@ describe('Tier 1 — FA-13: macOS & Universal WASM Runtimes (.app/.dmg/.pkg, App
       const wins = compositor.getSnapshot().windows ?? [];
       const win = wins.find((w) => w.pid === launched.pid || w.appId === appId);
       assert.ok(win, 'Expected universal-canvas.uapp to create a Compositor window via omni_os_v1 host imports');
-      const hasDrawOps = Array.isArray(win.drawOps) && win.drawOps.length > 0;
-      const hasUiTree = Boolean(win.uiTree && Object.keys(win.uiTree).length > 0);
+      const drawOps = win.drawOps ?? win.surface?.drawOps;
+      const uiTree = win.uiTree ?? win.surface?.uiTree;
+      const hasDrawOps = Array.isArray(drawOps) && drawOps.length > 0;
+      const hasUiTree = Boolean(uiTree && Object.keys(uiTree).length > 0);
       assert.ok(
         hasDrawOps || hasUiTree,
         `Expected populated drawOps or uiTree from universal-canvas.uapp, got: ${JSON.stringify(win)}`

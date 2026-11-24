@@ -11,6 +11,7 @@ import { types } from 'node:util';
 import { OmniOSError, ERROR_CODES } from './errors.mjs';
 
 const VALID_SYNC_MODES = new Set(['OFF', 'NORMAL', 'FULL', 'EXTRA']);
+const STMT_CACHE_MAX = 256;
 
 function isThenable(value) {
   if (value === null || value === undefined) return false;
@@ -66,6 +67,7 @@ export class SqliteStorage {
     this._closed = false;
     this._txDepth = 0;
     this._savepointSeq = 0;
+    this._stmtCache = new Map();
 
     if (!this.isMemory) {
       fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -122,9 +124,39 @@ export class SqliteStorage {
     }
   }
 
+  _getStatement(sql) {
+    let stmt = this._stmtCache.get(sql);
+    if (stmt !== undefined) {
+      this._stmtCache.delete(sql);
+      this._stmtCache.set(sql, stmt);
+      return stmt;
+    }
+    stmt = this.db.prepare(sql);
+    if (this._stmtCache.size >= STMT_CACHE_MAX) {
+      const oldestKey = this._stmtCache.keys().next().value;
+      this._stmtCache.delete(oldestKey);
+    }
+    this._stmtCache.set(sql, stmt);
+    return stmt;
+  }
+
   exec(sql) {
     this._assertOpen();
-    this.db.exec(sql);
+    const trimmed = typeof sql === 'string' ? sql.trim() : '';
+    const isPurePragma =
+      trimmed.length > 0 &&
+      trimmed
+        .split(';')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .every((stmt) => /^PRAGMA\b/i.test(stmt));
+    try {
+      this.db.exec(sql);
+    } finally {
+      if (!isPurePragma) {
+        this._stmtCache.clear();
+      }
+    }
   }
 
   prepare(sql) {
@@ -134,7 +166,7 @@ export class SqliteStorage {
 
   run(sql, ...params) {
     this._assertOpen();
-    const res = this.db.prepare(sql).run(...params);
+    const res = this._getStatement(sql).run(...params);
     return {
       changes: Number(res.changes),
       lastInsertRowid: typeof res.lastInsertRowid === 'bigint' ? Number(res.lastInsertRowid) : res.lastInsertRowid,
@@ -143,13 +175,13 @@ export class SqliteStorage {
 
   get(sql, ...params) {
     this._assertOpen();
-    const row = this.db.prepare(sql).get(...params);
+    const row = this._getStatement(sql).get(...params);
     return row === undefined ? null : { ...row };
   }
 
   all(sql, ...params) {
     this._assertOpen();
-    const rows = this.db.prepare(sql).all(...params);
+    const rows = this._getStatement(sql).all(...params);
     return rows.map((r) => ({ ...r }));
   }
 
@@ -330,6 +362,8 @@ export class SqliteStorage {
       applied.push(migId);
     }
 
+    this._stmtCache.clear();
+
     return {
       applied,
       skipped,
@@ -355,6 +389,7 @@ export class SqliteStorage {
   close() {
     if (this._closed) return;
     this._closed = true;
+    this._stmtCache.clear();
     const stillOpen = typeof this.db.isOpen === 'boolean' ? this.db.isOpen : true;
     if (stillOpen) {
       try {

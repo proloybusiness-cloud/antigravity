@@ -1793,6 +1793,19 @@ export class ShellInterpreter {
     const regCtx = { uid, privileged: uid === 0 };
     const sub = args[0].toLowerCase();
 
+    if (
+      args.length >= 3 &&
+      typeof args[1] === 'string' &&
+      !args[1].includes('\\') &&
+      /^(?:HK(?:LM|CU|CR|U|CC)|HKEY_[A-Z_]+)$/i.test(args[1].trim()) &&
+      typeof args[2] === 'string' &&
+      !args[2].startsWith('/') &&
+      !args[2].startsWith('-') &&
+      (sub === 'query' || sub === 'list' || sub === 'delete' || args.length >= 4 || args[2].includes('\\'))
+    ) {
+      args = [args[0], `${args[1].trim()}\\${args[2]}`, ...args.slice(3)];
+    }
+
     if (sub === 'query' || sub === 'list') {
       if (!args[1]) return { exitCode: 1, stdout: '', stderr: 'reg query: missing key path\n' };
       const { hive, keyPath } = parseRegistryPath(args[1]);
@@ -1857,8 +1870,17 @@ export class ShellInterpreter {
       }
       if (valueName === null && positionals.length >= 2) {
         valueName = positionals[0];
-        rawData = positionals[1];
-        if (positionals[2]) type = positionals[2].toUpperCase();
+        if (
+          positionals.length >= 3 &&
+          /^REG_(?:SZ|EXPAND_SZ|BINARY|DWORD|QWORD|MULTI_SZ)$/i.test(positionals[1]) &&
+          !/^REG_(?:SZ|EXPAND_SZ|BINARY|DWORD|QWORD|MULTI_SZ)$/i.test(positionals[2])
+        ) {
+          type = positionals[1].toUpperCase();
+          rawData = positionals.slice(2).join(' ');
+        } else {
+          rawData = positionals[1];
+          if (positionals[2]) type = positionals[2].toUpperCase();
+        }
       }
       if (valueName === null) {
         cfg.registry.createKey(hive, keyPath, regCtx);
@@ -2142,9 +2164,23 @@ export class ShellInterpreter {
     const sub = args[0].toLowerCase();
 
     if (sub === 'list' && (args[1]?.toLowerCase() === 'packages' || !args[1])) {
+      const thirdPartyOnly = args.includes('-3');
       const pkgs = pm.list();
       const showPath = args.includes('-f');
-      const lines = pkgs.map((p) => (showPath ? `package:${p.installDir}=${p.appId}` : `package:${p.appId}`));
+      const seen = new Set();
+      const lines = [];
+      for (const p of pkgs) {
+        if (!p?.appId || seen.has(p.appId)) continue;
+        seen.add(p.appId);
+        lines.push(showPath ? `package:${p.installDir}=${p.appId}` : `package:${p.appId}`);
+      }
+      if (!thirdPartyOnly && this.os.systemApps?.list) {
+        for (const sys of this.os.systemApps.list()) {
+          if (!sys?.appId || seen.has(sys.appId)) continue;
+          seen.add(sys.appId);
+          lines.push(showPath ? `package:/system/apps/${sys.appId}=${sys.appId}` : `package:${sys.appId}`);
+        }
+      }
       return { exitCode: 0, stdout: lines.length > 0 ? `${lines.join('\n')}\n` : '', stderr: '' };
     }
 
@@ -2263,8 +2299,24 @@ export class ShellInterpreter {
       const pIdx = args.indexOf('--platform');
       if (pIdx !== -1 && args[pIdx + 1]) platform = args[pIdx + 1];
       const list = pm.list(platform ? { platform } : {});
-      if (list.length === 0) return { exitCode: 0, stdout: '(no installed packages)\n', stderr: '' };
-      const lines = list.map((p) => `${p.appId}\t${p.platform}\t${p.arch}\tv${p.version}\t${p.name}`);
+      const seen = new Set();
+      const lines = [];
+      for (const p of list) {
+        if (!p?.appId || seen.has(p.appId)) continue;
+        seen.add(p.appId);
+        lines.push(`${p.appId}\t${p.platform}\t${p.arch}\tv${p.version}\t${p.name}`);
+      }
+      if (this.os.systemApps?.list) {
+        for (const sys of this.os.systemApps.list()) {
+          if (!sys?.appId || seen.has(sys.appId)) continue;
+          if (platform && String(sys.platform ?? 'system').toLowerCase() !== String(platform).toLowerCase()) {
+            continue;
+          }
+          seen.add(sys.appId);
+          lines.push(`${sys.appId}\t${sys.platform ?? 'system'}\tjs\tv${sys.version ?? '1.0.0'}\t${sys.name ?? sys.appId}`);
+        }
+      }
+      if (lines.length === 0) return { exitCode: 0, stdout: '(no installed packages)\n', stderr: '' };
       return { exitCode: 0, stdout: `${lines.join('\n')}\n`, stderr: '' };
     }
 

@@ -1261,6 +1261,13 @@ export class OmniWebSocketServer {
     if (!bus || typeof bus.on !== 'function' || this._subscribed) return;
     this._subscribed = true;
 
+    const perms = this._os?.permissions;
+    if (typeof perms?.registerInteractiveSource === 'function') {
+      this._unsubs.push(
+        perms.registerInteractiveSource(() => !this._closed && this._clients.size > 0)
+      );
+    }
+
     const add = (pattern, handler) => {
       const unsub = bus.on(pattern, handler);
       if (typeof unsub === 'function') {

@@ -675,6 +675,7 @@ describe('Tier 4 — S01: 5-Platform Concurrent Workflow & Fault Containment (F-
         ['com.android.system', 'system'],
         ['com.android.settings', 'system'],
         ['com.android.settings', 'settings'],
+        ['com.omnios.system', 'system_settings'],
         ['com.omnios.system', 'system'],
         ['com.omnios.system', 'settings'],
         ['com.omnios.os', 'system'],
@@ -698,6 +699,9 @@ describe('Tier 4 — S01: 5-Platform Concurrent Workflow & Fault Containment (F-
                 } else if (typeof item === 'string' && item.includes('/')) {
                   const [p, f] = item.split('/');
                   addSpCand(p, f);
+                } else if (typeof item === 'string' && item.trim()) {
+                  addSpCand(item.trim(), 'system_settings');
+                  addSpCand(item.trim(), 'system');
                 }
               }
             }

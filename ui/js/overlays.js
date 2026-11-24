@@ -82,10 +82,15 @@ export class OverlaysController {
 
     // Package upload state
     this._stagedUpload = null; // { bytes: Uint8Array, filename: string, inspection: object|null }
+    this._inspectSeq = 0;
+    this._isInspecting = false;
+    this._isInstalling = false;
+    this._uploadError = false;
     this._dragDepth = 0;
 
     this._dom = this._queryDom();
     this._bindEvents();
+    this._syncUploadButtons();
   }
 
   _queryDom() {
@@ -123,6 +128,7 @@ export class OverlaysController {
       uploadDropzone: byId('upload-dropzone'),
       uploadPreview: byId('upload-inspection-preview'),
       uploadStatus: byId('upload-status'),
+      uploadFooter: byId('upload-modal-footer'),
       btnUploadChoose: byId('btn-upload-choose'),
       btnUploadInstall: byId('btn-upload-install'),
       btnUploadInstallLaunch: byId('btn-upload-install-launch'),
@@ -397,6 +403,7 @@ export class OverlaysController {
         const btn = el('button', 'chooser-candidate-btn', {
           type: 'button',
           'data-chooser-app-id': String(cand.appId ?? ''),
+          'data-choice-app': String(cand.appId ?? ''),
           'data-platform': platform,
         });
         btn.appendChild(
@@ -537,25 +544,69 @@ export class OverlaysController {
 
   openUploadModal() {
     if (!this._dom.uploadModal) return;
-    this._dom.uploadModal.setAttribute('data-open', 'true');
     this._syncUploadButtons();
+    this._dom.uploadModal.setAttribute('data-open', 'true');
   }
 
-  closeUploadModal() {
+  closeUploadModal({ preserveStatus = false } = {}) {
+    this._inspectSeq += 1;
+    this._isInspecting = false;
+    this._isInstalling = false;
+    this._uploadError = false;
+    this._stagedUpload = null;
+    if (this._dom.uploadPreview) {
+      this._dom.uploadPreview.replaceChildren();
+    }
+    if (!preserveStatus && this._dom.uploadStatus) {
+      this._dom.uploadStatus.textContent = '';
+    }
     if (this._dom.uploadModal) {
       this._dom.uploadModal.setAttribute('data-open', 'false');
     }
+    this._syncUploadButtons();
   }
 
   _syncUploadButtons() {
-    const hasFile = Boolean(this._stagedUpload && this._stagedUpload.bytes?.byteLength > 0);
-    if (this._dom.btnUploadInstall) this._dom.btnUploadInstall.disabled = !hasFile;
-    if (this._dom.btnUploadInstallLaunch) this._dom.btnUploadInstallLaunch.disabled = !hasFile;
+    const hasInspected = Boolean(
+      !this._isInspecting &&
+      this._stagedUpload &&
+      this._stagedUpload.bytes?.byteLength > 0 &&
+      this._stagedUpload.inspection
+    );
+    const canClick = hasInspected && !this._isInstalling;
+    if (this._dom.uploadModal) {
+      const state = this._isInspecting
+        ? 'inspecting'
+        : this._uploadError
+          ? 'error'
+          : hasInspected
+            ? 'ready'
+            : 'idle';
+      this._dom.uploadModal.setAttribute('data-upload-state', state);
+    }
+    if (this._dom.uploadFooter) {
+      this._dom.uploadFooter.hidden = !hasInspected;
+    }
+    if (this._dom.btnUploadInstall) {
+      this._dom.btnUploadInstall.hidden = !hasInspected;
+      this._dom.btnUploadInstall.disabled = !canClick;
+    }
+    if (this._dom.btnUploadInstallLaunch) {
+      this._dom.btnUploadInstallLaunch.hidden = !hasInspected;
+      this._dom.btnUploadInstallLaunch.disabled = !canClick;
+    }
   }
 
   async handleBinaryFile(file) {
     if (!file) return;
-    this.openUploadModal();
+    const seq = ++this._inspectSeq;
+    const wasOpen = this._dom.uploadModal?.getAttribute('data-open') === 'true';
+
+    this._isInspecting = true;
+    this._uploadError = false;
+    this._stagedUpload = null;
+    this._syncUploadButtons();
+
     if (this._dom.uploadStatus) {
       this._dom.uploadStatus.textContent = `Inspecting ${file.name}…`;
     }
@@ -564,23 +615,40 @@ export class OverlaysController {
     }
 
     try {
+      const filename = file.name || 'package.bin';
       const buf = await file.arrayBuffer();
+      if (seq !== this._inspectSeq) return;
       const bytes = new Uint8Array(buf);
-      this._stagedUpload = { bytes, filename: file.name || 'package.bin', inspection: null };
-      this._syncUploadButtons();
 
-      const res = await this._client.inspectBinary(bytes, file.name || 'package.bin');
+      const res = await this._client.inspectBinary(bytes, filename);
+      if (seq !== this._inspectSeq) return;
       const insp = res?.inspection ?? res;
-      this._stagedUpload.inspection = insp;
-      this._renderUploadInspection(insp, file.name);
+
+      this._isInspecting = false;
+      this._uploadError = false;
+      this._stagedUpload = { bytes, filename, inspection: insp };
+      this._renderUploadInspection(insp, filename);
       if (this._dom.uploadStatus) {
-        this._dom.uploadStatus.textContent = `Ready to install: ${insp?.name || file.name} (${insp?.format || 'binary'})`;
+        this._dom.uploadStatus.textContent = `Ready to install: ${insp?.name || filename} (${insp?.format || 'binary'})`;
+      }
+      this._syncUploadButtons();
+      if (!wasOpen) {
+        this.openUploadModal();
       }
     } catch (err) {
+      if (seq !== this._inspectSeq) return;
+      this._isInspecting = false;
+      this._uploadError = true;
       this._stagedUpload = null;
-      this._syncUploadButtons();
+      if (this._dom.uploadPreview) {
+        this._dom.uploadPreview.replaceChildren();
+      }
       if (this._dom.uploadStatus) {
         this._dom.uploadStatus.textContent = `Inspection failed: ${err?.message ?? 'Invalid binary package'}`;
+      }
+      this._syncUploadButtons();
+      if (!wasOpen) {
+        this.openUploadModal();
       }
     }
   }
@@ -631,9 +699,9 @@ export class OverlaysController {
 
   async _installStagedPackage({ launchAfter = false } = {}) {
     const staged = this._stagedUpload;
-    if (!staged || !staged.bytes) return;
-    if (this._dom.btnUploadInstall) this._dom.btnUploadInstall.disabled = true;
-    if (this._dom.btnUploadInstallLaunch) this._dom.btnUploadInstallLaunch.disabled = true;
+    if (!staged || !staged.bytes || !staged.inspection || this._isInstalling) return;
+    this._isInstalling = true;
+    this._syncUploadButtons();
     if (this._dom.uploadStatus) {
       this._dom.uploadStatus.textContent = `Installing ${staged.filename}…`;
     }
@@ -649,8 +717,8 @@ export class OverlaysController {
       if (this._dom.uploadStatus) {
         this._dom.uploadStatus.textContent = `Installed ${pkg?.name || pkg?.appId || staged.filename}!`;
       }
+      this.closeUploadModal({ preserveStatus: true });
       if (launchAfter && pkg?.appId) {
-        this.closeUploadModal();
         // Uploaded binaries are installed user apps — omit preferSystem
         this._onLaunchApp(pkg.appId, {});
       }
@@ -659,6 +727,7 @@ export class OverlaysController {
         this._dom.uploadStatus.textContent = `Install failed: ${err?.message ?? 'Error'}`;
       }
     } finally {
+      this._isInstalling = false;
       this._syncUploadButtons();
     }
   }

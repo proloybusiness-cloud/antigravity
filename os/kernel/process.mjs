@@ -337,6 +337,18 @@ export class ProcessStreamBuffer {
     return this.read(maxBytes, { encoding, consume: false });
   }
 
+  toString() {
+    return this.peek('utf8');
+  }
+
+  get content() {
+    return this.toString();
+  }
+
+  toJSON() {
+    return this.toString();
+  }
+
   clear() {
     this._head = 0;
     this._size = 0;
@@ -563,12 +575,53 @@ export class ProcessManager {
         faultReason: null,
         lastFault: null,
       },
+      get exitCode() {
+        return this.stats.exitCode;
+      },
+      get exitSignal() {
+        return this.stats.exitSignal;
+      },
+      get signal() {
+        return this.stats.exitSignal;
+      },
+      get exitSignalNumber() {
+        return this.stats.exitSignalNumber;
+      },
+      get instructionsExecuted() {
+        return this.stats.instructionsExecuted ?? this.stats.totalInstructions ?? 0;
+      },
+      set instructionsExecuted(v) {
+        this.stats.instructionsExecuted = v;
+      },
       get executionContext() {
         return this.threads.get(this.mainTid)?.executionContext ?? null;
       },
       set executionContext(ctx) {
         const main = this.threads.get(this.mainTid);
         if (main) main.executionContext = ctx;
+      },
+      toJSON() {
+        return {
+          pid: this.pid,
+          ppid: this.ppid,
+          uid: this.uid,
+          gid: this.gid,
+          name: this.name,
+          appId: this.appId,
+          platform: this.platform,
+          arch: this.arch,
+          state: this.state,
+          cwd: this.cwd,
+          exitCode: this.stats.exitCode,
+          exitSignal: this.stats.exitSignal,
+          signal: this.stats.exitSignal,
+          instructionsExecuted: this.instructionsExecuted,
+          stats: { ...this.stats },
+          streams: {
+            stdout: this.streams.stdout.toString(),
+            stderr: this.streams.stderr.toString(),
+          },
+        };
       },
     };
 
@@ -1358,6 +1411,11 @@ export class ProcessManager {
 
   writeStdin(pid, data) {
     const pcb = this._requirePcb(pid);
+    if (pcb.state === PROCESS_STATES.TERMINATED || pcb.state === PROCESS_STATES.ZOMBIE) {
+      throw new ProcessError(`Cannot write stdin to terminated process ${pid} (state=${pcb.state})`, {
+        code: ERROR_CODES.EPIPE,
+      });
+    }
     const byteLength = pcb.streams.stdin.write(data);
     this._eventBus?.emit('process:stdin', {
       pid,

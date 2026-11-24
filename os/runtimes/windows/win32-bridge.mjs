@@ -981,16 +981,22 @@ export class Win32Bridge {
           this._permPromptCount += 1;
         }
         this._permAuditedKeys.add(dedupKey);
+        const hasInteractivePrompt =
+          typeof permissions.hasInteractivePromptConsumer === 'function'
+            ? permissions.hasInteractivePromptConsumer()
+            : typeof permissions._promptHandler === 'function';
         try {
           const req = {
             appId,
             pid: this.pcb?.pid ?? null,
             platform: 'windows',
             capability,
-            timeoutMs: 0,
           };
           if (sanitizedContext) {
             req.context = sanitizedContext;
+          }
+          if (!hasInteractivePrompt) {
+            req.timeoutMs = 0;
           }
           const p = permissions.checkPermission(req);
           if (p && typeof p.catch === 'function') {

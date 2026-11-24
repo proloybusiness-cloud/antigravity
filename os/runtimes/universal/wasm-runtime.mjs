@@ -642,7 +642,10 @@ export class UniversalWasmRuntime {
 
     if (isUapp) {
       const archive = readZip(bytes);
-      const manifestText = archive.readText('omnios.manifest.json');
+      const hasWasmFile = archive.entryList.some((e) => !e.isDirectory && e.name.toLowerCase().endsWith('.wasm'));
+      const manifestText =
+        archive.readText('omnios.manifest.json') ??
+        (hasWasmFile ? archive.readText('manifest.json') : null);
       if (manifestText === null) {
         throw new FormatError('Universal .uapp archive missing exact root entry "omnios.manifest.json"', {
           code: ERROR_CODES.E_INVALID_WASM,
@@ -728,6 +731,32 @@ export class UniversalWasmRuntime {
         ? manifest.permissions.filter((p) => typeof p === 'string' && p.trim().length > 0)
         : [];
       const intents = normalizeManifestIntents(manifest.intents);
+      const topSchemes = Array.isArray(manifest.urlSchemes ?? manifest.schemes)
+        ? (manifest.urlSchemes ?? manifest.schemes).filter((s) => typeof s === 'string' && s.trim().length > 0)
+        : [];
+      const topFileTypes = Array.isArray(manifest.fileTypes)
+        ? manifest.fileTypes.filter((f) => typeof f === 'string' && f.trim().length > 0)
+        : [];
+      const topExts = Array.isArray(manifest.extensions)
+        ? manifest.extensions.filter((e) => typeof e === 'string' && e.trim().length > 0)
+        : topFileTypes.filter((f) => !f.includes('/'));
+      const topMimes = Array.isArray(manifest.mimeTypes)
+        ? manifest.mimeTypes.filter((m) => typeof m === 'string' && m.trim().length > 0)
+        : topFileTypes.filter((f) => f.includes('/'));
+      if (topSchemes.length > 0) {
+        intents.push({
+          actions: ['android.intent.action.VIEW'],
+          categories: ['android.intent.category.DEFAULT'],
+          schemes: topSchemes,
+        });
+      }
+      if (topExts.length > 0 || topMimes.length > 0) {
+        intents.push({
+          actions: ['android.intent.action.VIEW'],
+          ...(topExts.length > 0 ? { extensions: topExts } : {}),
+          ...(topMimes.length > 0 ? { mimeTypes: topMimes } : {}),
+        });
+      }
 
       return {
         format: 'universal-uapp',

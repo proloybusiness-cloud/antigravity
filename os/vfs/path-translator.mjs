@@ -157,8 +157,8 @@ export function isPathWithinRoot(canonicalPath, sandboxRoot, opts = {}) {
   if (typeof canonicalPath !== 'string' || typeof sandboxRoot !== 'string') return false;
   if (canonicalPath.length > MAX_PATH_LENGTH || sandboxRoot.length > MAX_PATH_LENGTH) return false;
   if (!canonicalPath.startsWith('/') || !sandboxRoot.startsWith('/')) return false;
-  const collapsedPath = canonicalPath.replace(/\/+/g, '/');
-  const collapsedRoot = sandboxRoot.replace(/\/+/g, '/');
+  const collapsedPath = canonicalPath.includes('//') ? canonicalPath.replace(/\/+/g, '/') : canonicalPath;
+  const collapsedRoot = sandboxRoot.includes('//') ? sandboxRoot.replace(/\/+/g, '/') : sandboxRoot;
   const cleanPath =
     collapsedPath.length > 1 && collapsedPath.endsWith('/')
       ? collapsedPath.slice(0, -1)

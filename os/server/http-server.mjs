@@ -314,7 +314,7 @@ function mapErrorToHttp(err) {
   ) {
     return { status: 403, code, name, message, details, headers: null };
   }
-  if (code === 'EEXIST' || code === 'E_SERVICE_EXISTS' || code === 'EBUSY') {
+  if (code === 'EEXIST' || code === 'E_SERVICE_EXISTS' || code === 'EBUSY' || code === 'EPIPE') {
     return { status: 409, code, name, message, details, headers: null };
   }
   if (code === 'E_PAYLOAD_TOO_LARGE' || code === 'EFBIG' || code === 'ENOSPC' || code === 'ENOMEM') {
@@ -985,6 +985,7 @@ export class OmniHttpServer {
     const svcMatch = /^\/api\/v1\/kernel\/services\/([^/]+)\/([^/]+)$/.exec(pathname);
     if (svcMatch) {
       if (method !== 'POST') throw methodNotAllowed(['POST']);
+      await readJsonBody(req, this._maxJsonBodyBytes, { allowEmpty: true });
       const name = safeDecodeParam(svcMatch[1], 'service name');
       const action = safeDecodeParam(svcMatch[2], 'service action').toLowerCase();
       let result;
@@ -1298,9 +1299,15 @@ export class OmniHttpServer {
 
     // ---- Unified Config Store ----
     if (pathname === '/api/v1/config/system') {
+      const normalizeSystemKey = (rawKey) => {
+        if (typeof rawKey !== 'string') return rawKey;
+        const shortAliases = new Set(['theme', 'volume', 'brightness', 'wifi', 'bluetooth', 'dnd', 'locale', 'shellMode']);
+        return shortAliases.has(rawKey) ? `system.${rawKey}` : rawKey;
+      };
       if (method === 'GET') {
-        const key = query.get('key');
-        if (key) {
+        const rawKey = query.get('key');
+        if (rawKey) {
+          const key = normalizeSystemKey(rawKey);
           this._sendJson(res, 200, { ok: true, key, value: os.configStore.system.get(key) });
           return;
         }
@@ -1312,8 +1319,9 @@ export class OmniHttpServer {
         const body = await readJsonBody(req, this._maxJsonBodyBytes);
         assertNoDangerousOwnKeys(body);
         if (typeof body.key === 'string' && Object.prototype.hasOwnProperty.call(body, 'value')) {
-          assertSafeConfigKey(body.key);
-          os.configStore.system.set(body.key, body.value);
+          const key = normalizeSystemKey(body.key);
+          assertSafeConfigKey(key);
+          os.configStore.system.set(key, body.value);
         } else {
           let map;
           if (Object.prototype.hasOwnProperty.call(body, 'values')) {
@@ -1342,7 +1350,8 @@ export class OmniHttpServer {
           if (entries.length === 0) {
             throw new HttpRouteError(400, ERROR_CODES.EINVAL, 'Expected { key, value } or key/value object');
           }
-          for (const [k, v] of entries) {
+          for (const [rawK, v] of entries) {
+            const k = normalizeSystemKey(rawK);
             assertSafeConfigKey(k);
             os.configStore.system.set(k, v);
           }
@@ -1470,7 +1479,9 @@ export class OmniHttpServer {
       if (method === 'GET') {
         const packageName = query.get('packageName') ?? query.get('package');
         if (!packageName) {
-          throw new HttpRouteError(400, ERROR_CODES.EINVAL, 'Missing required query param: packageName');
+          const packages = os.configStore?.sharedPrefs?.listNamespaces?.() ?? [];
+          this._sendJson(res, 200, { ok: true, packages });
+          return;
         }
         const prefName = query.get('prefName') ?? 'default';
         const key = query.get('key');
@@ -1718,6 +1729,7 @@ export class OmniHttpServer {
         if (typeof body.appId === 'string' && typeof body.capability === 'string' && typeof body.state === 'string') {
           const grant = os.permissions.setGrant(body.appId, body.capability, body.state, {
             source: body.source ?? 'api',
+            audit: true,
           });
           this._sendJson(res, 200, { ok: true, grant });
           return;
@@ -1866,6 +1878,9 @@ export class OmniHttpServer {
             ? Boolean(body.purgeData)
             : parseBoolParam(query.get('purgeData'), false);
         const result = await os.pkgManager.uninstall(appId, { purgeData });
+        if (!result || result.removed === false) {
+          throw new HttpRouteError(404, ERROR_CODES.ENOENT, `Package not found: ${appId}`);
+        }
         this._sendJson(res, 200, { ok: true, ...result });
         return;
       }
@@ -2118,12 +2133,43 @@ export async function startOmniOSServer(options = {}) {
 
 // Main-module entrypoint: `node os/server/http-server.mjs`
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
-  const port = Number(process.env.PORT ?? 3777);
-  const host = process.env.HOST ?? '127.0.0.1';
-  const dataDir = process.env.OMNIOS_DATA_DIR || null;
+  const argv = process.argv.slice(2);
+  let liteMode;
+  let cliPort;
+  let cliHost;
+  let cliDataDir;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--lite') {
+      liteMode = true;
+    } else if (arg.startsWith('--lite=')) {
+      const val = arg.slice('--lite='.length).trim().toLowerCase();
+      liteMode = val === 'true' || val === '1' || val === 'yes';
+    } else if (arg === '--port' && i + 1 < argv.length) {
+      cliPort = argv[++i];
+    } else if (arg.startsWith('--port=')) {
+      cliPort = arg.slice('--port='.length);
+    } else if (arg === '--host' && i + 1 < argv.length) {
+      cliHost = argv[++i];
+    } else if (arg.startsWith('--host=')) {
+      cliHost = arg.slice('--host='.length);
+    } else if (arg === '--data-dir' && i + 1 < argv.length) {
+      cliDataDir = argv[++i];
+    } else if (arg.startsWith('--data-dir=')) {
+      cliDataDir = arg.slice('--data-dir='.length);
+    }
+  }
+  const port = Number(cliPort ?? process.env.PORT ?? 3777);
+  const host = cliHost ?? process.env.HOST ?? '127.0.0.1';
+  const dataDir = (cliDataDir ?? process.env.OMNIOS_DATA_DIR) || null;
 
   try {
-    const { server, address } = await startOmniOSServer({ port, host, dataDir });
+    const { server, address } = await startOmniOSServer({
+      port,
+      host,
+      dataDir,
+      ...(liteMode !== undefined ? { liteMode } : {}),
+    });
     console.log(`[OmniOS] HTTP/WS daemon listening at ${address.url} (ws: ${address.wsUrl})`);
 
     let shuttingDown = false;

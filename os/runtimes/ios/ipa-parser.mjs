@@ -326,6 +326,22 @@ function collectMachOIntrospection(macho) {
     }
   }
 
+  if (Array.isArray(macho.objcClasses)) {
+    for (const cls of macho.objcClasses) {
+      if (typeof cls === 'string' && cls.length > 0) {
+        sectionsOrClasses.push(cls);
+      }
+    }
+  }
+
+  if (Array.isArray(macho.objcSelectors)) {
+    for (const sel of macho.objcSelectors) {
+      if (typeof sel === 'string' && sel.length > 0) {
+        importsSet.add(sel);
+      }
+    }
+  }
+
   return {
     sectionsOrClasses,
     importsOrMethods: Array.from(importsSet),

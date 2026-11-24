@@ -485,7 +485,10 @@ describe('Tier 1 — FA-09: Zero-Dep PKZIP/ZIP64, Magic-Byte Format Detector & o
       srv = await startOmniServer();
       const pkgsRes = await srv.api.get('/api/v1/packages');
       assert.equal(pkgsRes.status, 200);
-      const pkgs = unwrapList(pkgsRes.json);
+      const pkgs = [
+        ...unwrapList(pkgsRes.json),
+        ...unwrapList(pkgsRes.json, ['systemApps']),
+      ];
       const longLivedPkg =
         pkgs.find((p) => getAppId(p) === 'sys.notes') ??
         pkgs.find((p) => getAppId(p) === 'sys.terminal') ??

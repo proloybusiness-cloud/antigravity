@@ -1113,6 +1113,7 @@ export class PackageManager {
     this._permissions = permissions;
     this._compositor = compositor;
     this._detector = detector;
+    this.formatDetector = detector;
     this._log = typeof log === 'function' ? log : () => {};
 
     // Prototype-safe maps
@@ -1770,6 +1771,17 @@ export class PackageManager {
       });
     }
     if (detection.format === PACKAGE_FORMATS.UNKNOWN) {
+      if (bytes.byteLength >= 2 && bytes[0] === 0x4d && bytes[1] === 0x5a) {
+        throw new FormatError('Invalid or malformed PE executable header', {
+          code: ERROR_CODES.E_INVALID_PE,
+          format: PACKAGE_FORMATS.WINDOWS_PE,
+          details: {
+            magicHex: detection.magicHex,
+            filenameHint: resolvedHint,
+            ...detection.details,
+          },
+        });
+      }
       throw new FormatError('Unrecognized package or binary format', {
         code: 'E_UNKNOWN_FORMAT',
         format: 'unknown',
@@ -2420,6 +2432,18 @@ export class PackageManager {
           for (const cap of explicitGrants) {
             capabilities.add(cap);
           }
+          if (grantAll) {
+            for (const cap of [
+              'fs.read.user',
+              'fs.write.user',
+              'clipboard.read',
+              'clipboard.write',
+              'notifications.post',
+              'ui.window',
+            ]) {
+              capabilities.add(cap);
+            }
+          }
           for (const cap of capabilities) {
             let state = 'prompt';
             if (grantAll) {
@@ -3009,6 +3033,11 @@ export class PackageManager {
             }
           }
         }
+        if (stoppedPids.length === 0 && !this._installedCache.has(targetAppId)) {
+          throw new OmniOSError(`Package not installed: ${targetAppId}`, {
+            code: ERROR_CODES.ENOENT,
+          });
+        }
         return { stoppedPids };
       }
     }
@@ -3024,7 +3053,9 @@ export class PackageManager {
     const purgeData = Boolean(safeGetProp(optsObj, 'purgeData', 'uninstall options'));
     const record = this._installedCache.get(appId);
     if (!record) {
-      return { removed: false, appId, stoppedPids: [], purgedData: false };
+      throw new OmniOSError(`Package not installed: ${appId}`, {
+        code: ERROR_CODES.ENOENT,
+      });
     }
 
     const shouldPurge = Boolean(purgeData);

@@ -467,6 +467,7 @@ describe('Tier 1 — FA-05: Unified Config Store (Registry, Apple Defaults & And
         ['com.android.system', 'system'],
         ['com.android.settings', 'system'],
         ['com.android.settings', 'settings'],
+        ['com.omnios.system', 'system_settings'],
         ['com.omnios.system', 'system'],
         ['com.omnios.system', 'settings'],
         ['com.omnios.os', 'system'],

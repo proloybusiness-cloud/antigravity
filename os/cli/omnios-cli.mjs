@@ -717,7 +717,9 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
 
     // ---- Special interactive/long-running commands ----
     if (command === 'boot') {
-      if (flags.serve) {
+      const shouldServe =
+        Boolean(flags.serve) || (!remote && (Boolean(flags.port) || Boolean(flags.host)));
+      if (shouldServe) {
         if (remote) {
           throw new Error('Cannot combine --serve with --remote');
         }
@@ -1423,12 +1425,22 @@ export async function runCli(argv = process.argv.slice(2), io = {}) {
 
       case 'intent': {
         const sub = positionals[0]?.toLowerCase();
+        const positionalUri =
+          !flags.uri && typeof positionals[1] === 'string' && positionals[1].trim().length > 0
+            ? positionals[1].trim()
+            : undefined;
+        const resolvedUri = flags.uri ?? positionalUri;
+        let resolvedScheme = flags.scheme;
+        if (!resolvedScheme && typeof resolvedUri === 'string') {
+          const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(resolvedUri);
+          if (schemeMatch) resolvedScheme = schemeMatch[1];
+        }
         const intentPayload = {
           ...(flags.action ? { action: flags.action } : {}),
-          ...(flags.uri ? { uri: flags.uri } : {}),
+          ...(resolvedUri ? { uri: resolvedUri } : {}),
           ...(flags.mime ? { mimeType: flags.mime } : {}),
           ...(flags.ext ? { extension: flags.ext } : {}),
-          ...(flags.scheme ? { scheme: flags.scheme } : {}),
+          ...(resolvedScheme ? { scheme: resolvedScheme } : {}),
           ...(flags.app ? { preferredAppId: flags.app } : {}),
         };
 

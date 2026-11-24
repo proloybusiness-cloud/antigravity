@@ -103,9 +103,16 @@ function summarizeMachO(macho) {
   for (const sym of macho.symbols ?? []) {
     if (sym?.isUndefined && sym.name) importSet.add(sym.name);
   }
+  for (const cls of macho.objcClasses ?? []) {
+    if (cls) sectionsOrClasses.push(cls);
+  }
+  for (const sel of macho.objcSelectors ?? []) {
+    if (sel) importSet.add(sel);
+  }
   return {
     sectionsOrClasses,
     importsOrMethods: Array.from(importSet),
+    objcClasses: macho.objcClasses ?? [],
     dylibs: (macho.dylibs ?? []).map((d) => (typeof d === 'string' ? d : d.name)),
     buildVersion: macho.buildVersion ?? null,
   };
@@ -800,6 +807,11 @@ export class MacOSRuntime {
     objcRuntime.loadMachOObjC(loaded);
 
     // 4. Create Darwin XNU BSD Syscall & Mach Trap Layer
+    const userRec =
+      services.users && typeof services.users.getUserByUid === 'function'
+        ? services.users.getUserByUid(pcb.uid)
+        : null;
+    const macSandboxRoot = userRec?.strictSandbox === true ? appRecord.dataDir : null;
     const darwinSyscalls = createDarwinSyscalls({
       pcb,
       addressSpace,
@@ -808,7 +820,7 @@ export class MacOSRuntime {
       platform: 'macos',
       arch: selectedArch,
       appId,
-      sandboxRoot: appRecord.dataDir,
+      sandboxRoot: macSandboxRoot,
       cwd: pcb.cwd || appRecord.dataDir,
       pid: pcb.pid,
       ppid: pcb.ppid ?? 1,

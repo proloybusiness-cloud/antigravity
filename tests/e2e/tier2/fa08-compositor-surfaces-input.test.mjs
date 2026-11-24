@@ -706,7 +706,7 @@ test.describe('Tier 2 — FA-08: Headless Window Compositor, Dual Surfaces & Inp
       // 2. Acquire a real live window dynamically via /api/v1/packages (fallback /api/v1/packages/catalog; zero hardcoded IDs!)
       const pkgsRes = await srv.api.get('/api/v1/packages');
       assert.equal(pkgsRes.status, 200, `GET /api/v1/packages must return 200 (got ${pkgsRes.status})`);
-      let pkgs = extractArrayStrict(pkgsRes.json, ['packages', 'apps', 'items']) ?? [];
+      let pkgs = extractArrayStrict(pkgsRes.json, ['packages', 'systemApps', 'apps', 'items']) ?? [];
       if (pkgs.length === 0) {
         const catRes = await srv.api.get('/api/v1/packages/catalog');
         if (catRes.ok) {

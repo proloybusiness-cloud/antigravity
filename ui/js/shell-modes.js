@@ -91,6 +91,8 @@ export class ShellModeController {
     this._selectedActivityId = null;
     this._openMenuId = null;
     this._clockTimer = null;
+    this._configSyncSeq = 0;
+    this._wsConfigSyncBound = false;
 
     this._dom = this._queryDom();
     this._bindEvents();
@@ -288,8 +290,13 @@ export class ShellModeController {
     this._renderIosSpringboardVisibility();
   }
 
-  applySystemConfig(configMap) {
+  getConfigSyncSeq() {
+    return this._configSyncSeq;
+  }
+
+  applySystemConfig(configMap, expectedSeq = null) {
     if (!configMap || typeof configMap !== 'object') return;
+    if (expectedSeq !== null && expectedSeq !== this._configSyncSeq) return;
     for (const [k, v] of Object.entries(configMap)) {
       if (k.startsWith('system.')) {
         this._systemConfig[k] = k === 'system.shellMode' ? normalizeShellMode(v) : v;
@@ -305,6 +312,7 @@ export class ShellModeController {
     if (!payload || typeof payload !== 'object') return;
     const key = payload.canonicalKey || payload.key;
     if (typeof key !== 'string' || !key.startsWith('system.')) return;
+    this._configSyncSeq += 1;
     if (key === 'system.shellMode') {
       this.applyShellModeFromServer(payload.value);
     } else {
@@ -333,6 +341,10 @@ export class ShellModeController {
       // Subtle dim overlay variable (0 at 100% brightness, max 0.42 at 0% so UI always remains legible)
       const dimAlpha = ((100 - brightness) / 100) * 0.42;
       this._dom.shell.style.setProperty('--omni-brightness-dim', dimAlpha.toFixed(3));
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement?.setAttribute('data-theme', theme);
+      document.body?.setAttribute('data-theme', theme);
     }
 
     if (typeof document !== 'undefined') {
@@ -380,6 +392,7 @@ export class ShellModeController {
   }
 
   async toggleSystemKey(key) {
+    const seq = ++this._configSyncSeq;
     let nextVal;
     if (key === 'system.theme') {
       const cur = this._resolveEffectiveTheme(this._systemConfig['system.theme']);
@@ -391,19 +404,20 @@ export class ShellModeController {
     this._applySystemConfigDom();
     try {
       const res = await this._client.setSystemConfig(key, nextVal);
-      if (res?.system) this.applySystemConfig(res.system);
+      if (res?.system) this.applySystemConfig(res.system, seq);
     } catch {
       // ignore transient error
     }
   }
 
   async setSystemNumericKey(key, value) {
+    const seq = ++this._configSyncSeq;
     const clamped = Math.max(0, Math.min(100, Math.round(Number(value))));
     this._systemConfig[key] = clamped;
     this._applySystemConfigDom();
     try {
       const res = await this._client.setSystemConfig(key, clamped);
-      if (res?.system) this.applySystemConfig(res.system);
+      if (res?.system) this.applySystemConfig(res.system, seq);
     } catch {
       // ignore transient error
     }
@@ -1174,11 +1188,22 @@ export class ShellModeController {
         {
           type: 'button',
           'data-recents-kill-pid': String(item.pid),
+          'data-action': 'kill',
         },
         'Swipe / Kill'
       );
       btnKill.addEventListener('click', async () => {
         // Guard kernel PIDs 0/1; kill genuine user process PID!
+        if (this._compositorUI && typeof this._compositorUI.handleWindowClosed === 'function') {
+          if (item.windowId) {
+            this._compositorUI.handleWindowClosed({ windowId: item.windowId });
+          }
+          for (const w of this._windows) {
+            if (Number(w?.pid) === item.pid && w.windowId && w.windowId !== item.windowId) {
+              this._compositorUI.handleWindowClosed({ windowId: w.windowId });
+            }
+          }
+        }
         if (item.pid > 1) {
           try {
             await this._client.signalProcess(item.pid, 'SIGTERM');
@@ -1191,8 +1216,14 @@ export class ShellModeController {
           await this._client.closeWindow(item.windowId).catch(() => {});
         }
         try {
-          const res = await this._client.listProcesses();
-          if (res?.processes) this.setProcesses(res.processes);
+          const [procRes, snapRes] = await Promise.all([
+            this._client.listProcesses().catch(() => null),
+            this._client.getCompositorSnapshot().catch(() => null),
+          ]);
+          if (procRes?.processes) this.setProcesses(procRes.processes);
+          if (snapRes && this._compositorUI && typeof this._compositorUI.applySnapshot === 'function') {
+            this._compositorUI.applySnapshot(snapRes);
+          }
         } catch {
           // ignore
         }
@@ -1558,6 +1589,21 @@ export class ShellModeController {
   // ---- Event Wiring ----
 
   _bindEvents() {
+    if (!this._wsConfigSyncBound && this._client && typeof this._client.on === 'function') {
+      this._wsConfigSyncBound = true;
+      this._client.on('ws:open', () => {
+        const seq = this._configSyncSeq;
+        this._client
+          .getSystemConfig?.()
+          .then((res) => {
+            const cfg = res?.system ?? res?.values ?? res;
+            if (cfg && typeof cfg === 'object') {
+              this.applySystemConfig(cfg, seq);
+            }
+          })
+          .catch(() => {});
+      });
+    }
     if (typeof document === 'undefined') return;
 
     // Delegated clicks for shell mode buttons & system toggles across all panels
@@ -1640,14 +1686,25 @@ export class ShellModeController {
     this._dom.btnChromeToggle?.addEventListener('click', () => this.toggleChromeMode());
 
     // Dynamic Island pill toggle
-    this._dom.diPill?.addEventListener('click', (ev) => {
+    const toggleDynamicIsland = (ev) => {
       ev.stopPropagation();
       if (!this._dom.dynamicIsland) return;
       const expanded = this._dom.dynamicIsland.getAttribute('data-expanded') === 'true';
       const next = !expanded;
       this._dom.dynamicIsland.setAttribute('data-expanded', next ? 'true' : 'false');
+      this._dom.dynamicIsland.setAttribute('aria-expanded', next ? 'true' : 'false');
+      this._dom.dynamicIsland.classList.toggle('is-expanded', next);
       this._dom.diPill?.setAttribute('aria-expanded', next ? 'true' : 'false');
       document.getElementById('dynamic-island-expanded')?.setAttribute('aria-hidden', next ? 'false' : 'true');
+    };
+    this._dom.diPill?.addEventListener('click', toggleDynamicIsland);
+    this._dom.dynamicIsland?.addEventListener('click', (ev) => {
+      const target = ev.target;
+      if (target instanceof Element) {
+        if (this._dom.diPill?.contains(target)) return;
+        if (target.closest('#dynamic-island-expanded button, #dynamic-island-expanded a')) return;
+      }
+      toggleDynamicIsland(ev);
     });
 
     // Control Center toggles

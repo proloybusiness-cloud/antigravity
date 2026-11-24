@@ -2433,6 +2433,7 @@ export class UnifiedConfigStore {
       getAll: (packageName, prefName, ctx = null) => this._spGetAll(packageName, prefName, ctx),
       get: (packageName, prefName, key, defaultValue = null, ctx = null) =>
         this._spGet(packageName, prefName, key, defaultValue, ctx),
+      listNamespaces: () => this._spListNamespaces(),
     };
 
     this.system = {
@@ -3659,6 +3660,19 @@ export class UnifiedConfigStore {
       appliedOps: opsLen,
       changedKeys: Array.from(new Set(changedKeys)),
     };
+  }
+
+  _spListNamespaces() {
+    const db = this._requireStorage();
+    const rows = db.all('SELECT DISTINCT package_name FROM shared_prefs_entries ORDER BY package_name ASC');
+    const namespaces = new Set();
+    if (SYSTEM_SP_PACKAGE) namespaces.add(SYSTEM_SP_PACKAGE);
+    for (const row of rows) {
+      if (row && typeof row.package_name === 'string') {
+        namespaces.add(row.package_name);
+      }
+    }
+    return Array.from(namespaces).sort();
   }
 
   _spGetAll(packageName, prefName, ctx = null) {

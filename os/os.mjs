@@ -108,12 +108,16 @@ export class OmniOS {
     }
     const cfg = config ?? {};
 
+    const hasExplicitTickMs =
+      typeof cfg.tickMs === 'number' && Number.isFinite(cfg.tickMs) && cfg.tickMs > 0;
+
     this.version = '1.0.0';
     this._config = {
       dataDir: cfg.dataDir ?? null,
       dbPath: cfg.dbPath ?? null,
       autoStartScheduler: Boolean(cfg.autoStartScheduler ?? false),
-      tickMs: typeof cfg.tickMs === 'number' && Number.isFinite(cfg.tickMs) && cfg.tickMs > 0 ? cfg.tickMs : 16,
+      tickMs: hasExplicitTickMs ? cfg.tickMs : null,
+      liteMode: cfg.liteMode !== undefined ? Boolean(cfg.liteMode) : undefined,
       packagesDir: typeof cfg.packagesDir === 'string' && cfg.packagesDir.length > 0
         ? cfg.packagesDir
         : DEFAULT_PACKAGES_DIR,
@@ -131,13 +135,16 @@ export class OmniOS {
       dataDir: this._config.dataDir,
       dbPath: this._config.dbPath,
       autoStartScheduler: this._config.autoStartScheduler,
-      tickMs: this._config.tickMs,
     };
+    if (hasExplicitTickMs) kernelOpts.tickMs = cfg.tickMs;
+    if (this._config.liteMode !== undefined) kernelOpts.liteMode = this._config.liteMode;
     if (cfg.dmesgCapacity !== undefined) kernelOpts.dmesgCapacity = cfg.dmesgCapacity;
     if (cfg.baseQuantum !== undefined) kernelOpts.baseQuantum = cfg.baseQuantum;
     if (cfg.panicDumpWriter !== undefined) kernelOpts.panicDumpWriter = cfg.panicDumpWriter;
 
     this.kernel = createKernel(kernelOpts);
+    this._config.tickMs = this.kernel.options.tickMs;
+    this._config.liteMode = this.kernel.options.liteMode;
     this.processManager = this.kernel.processManager;
     this.scheduler = this.kernel.scheduler;
     this.serviceManager = this.kernel.serviceManager;
@@ -153,7 +160,11 @@ export class OmniOS {
 
     // 3. Construct ALL M2 Services lazily bound to `{ kernel }`
     this.users = new UserManager({ kernel: this.kernel });
-    this.permissions = new PermissionBroker({ kernel: this.kernel, userManager: this.users });
+    const permOpts = { kernel: this.kernel, userManager: this.users };
+    if (cfg.interactivePromptTimeoutMs !== undefined) {
+      permOpts.interactivePromptTimeoutMs = cfg.interactivePromptTimeoutMs;
+    }
+    this.permissions = new PermissionBroker(permOpts);
     this.pathTranslator = createPathTranslator();
     this.virtualMounts = createVirtualMounts({
       kernel: this.kernel,
@@ -525,7 +536,7 @@ export class OmniOS {
         const sysRes = this.systemApps.stop(canonicalSystemId, stopOpts);
         for (const pid of sysRes.stoppedPids) stoppedSet.add(pid);
       }
-      if (this.pkgManager.isReady()) {
+      if (this.pkgManager.isReady() && (!canonicalSystemId || this.pkgManager.get(pidOrAppId))) {
         const pkgRes = this.pkgManager.stop(pidOrAppId, stopOpts);
         for (const pid of pkgRes.stoppedPids) stoppedSet.add(pid);
       }

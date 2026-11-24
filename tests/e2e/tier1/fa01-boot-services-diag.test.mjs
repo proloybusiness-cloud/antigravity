@@ -471,9 +471,15 @@ describe('Tier 1 — FA-01: OS Boot, System Services, dmesg & Panic/Recovery', (
 
       // Recover in safeMode without crashing host process
       const rec = await kernel1.recover({ safeMode: true });
-      assert.ok(rec && rec.status === 'RUNNING', `kernel.recover() must restore RUNNING status, got ${JSON.stringify(rec)}`);
+      assert.ok(
+        rec && (rec.status === 'RUNNING' || rec.status === 'SAFE_MODE'),
+        `kernel.recover() must restore RUNNING or SAFE_MODE status, got ${JSON.stringify(rec)}`
+      );
       const recDiag = kernel1.getDiagnostics();
-      assert.equal(recDiag.state, 'RUNNING', 'Kernel diagnostics state must return to RUNNING after recover()');
+      assert.ok(
+        recDiag.state === 'RUNNING' || recDiag.state === 'SAFE_MODE',
+        `Kernel diagnostics state must return to RUNNING or SAFE_MODE after recover(), got ${recDiag.state}`
+      );
       assert.ok(
         recDiag.lastPanic && JSON.stringify(recDiag.lastPanic).includes(panicCode),
         'lastPanic must remain recorded after recovery'

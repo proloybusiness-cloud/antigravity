@@ -733,6 +733,95 @@ describe('Suite 2: os/security/permissions.mjs — Permission Broker, 5-Ecosyste
       reopened.close();
     }
   });
+
+  it('M7 Item B: selects interactive vs headless prompt timeouts via registerInteractiveSource / hasInteractivePromptConsumer', async () => {
+    // Invalid interactive timeout is rejected fail-closed
+    assert.throws(
+      () => new PermissionBroker({ interactivePromptTimeoutMs: -1 }),
+      (err) => err instanceof SecurityError && err.code === ERROR_CODES.EINVAL
+    );
+    assert.throws(
+      () => new PermissionBroker({ interactivePromptTimeoutMs: Number.NaN }),
+      (err) => err instanceof SecurityError && err.code === ERROR_CODES.EINVAL
+    );
+
+    const bus = new KernelEventBus();
+    const broker = new PermissionBroker({ eventBus: bus, interactivePromptTimeoutMs: 400 });
+    assert.throws(
+      () => broker.registerInteractiveSource('not-a-function'),
+      (err) => err instanceof SecurityError && err.code === ERROR_CODES.EINVAL
+    );
+
+    // Headless: no promptHandler and no interactive source
+    assert.equal(broker.hasInteractivePromptConsumer(), false);
+    const headlessStart = Date.now();
+    const headlessRes = await broker.checkPermission({
+      appId: 'app.headless',
+      platform: 'android',
+      capability: CAPABILITIES.CAMERA_DEVICE,
+      timeoutMs: 0,
+    });
+    assert.equal(headlessRes.granted, false);
+    assert.equal(headlessRes.reason, 'prompt_timeout');
+    assert.ok(Date.now() - headlessStart < 200, 'timeoutMs: 0 must settle immediately when headless');
+    assert.equal(broker.getPendingPrompts().length, 0);
+
+    // A throwing predicate is ignored (treated as non-interactive)
+    const unregThrow = broker.registerInteractiveSource(() => {
+      throw new Error('predicate boom');
+    });
+    assert.equal(broker.hasInteractivePromptConsumer(), false);
+    unregThrow();
+
+    // Live interactive source -> default timeout becomes interactivePromptTimeoutMs (400ms),
+    // so the prompt is still pending after 60ms and can be resolved by the UI.
+    let live = true;
+    const unregister = broker.registerInteractiveSource(() => live);
+    assert.equal(broker.hasInteractivePromptConsumer(), true);
+    const pendingPromise = broker.checkPermission({
+      appId: 'app.interactive',
+      platform: 'windows',
+      capability: CAPABILITIES.CLIPBOARD_READ,
+    });
+    await new Promise((r) => setTimeout(r, 60));
+    const pending = broker.getPendingPrompts();
+    assert.equal(pending.length, 1, 'interactive prompt must remain pending awaiting the UI');
+    const resolved = broker.resolvePrompt(pending[0].promptId, 'allow');
+    assert.equal(resolved.ok, true);
+    const interactiveRes = await pendingPromise;
+    assert.equal(interactiveRes.granted, true);
+    assert.equal(interactiveRes.reason, 'prompt_allowed');
+
+    // Unresolved interactive prompt times out after interactivePromptTimeoutMs (not the 2500ms headless default)
+    const tStart = Date.now();
+    const timedOut = await broker.checkPermission({
+      appId: 'app.interactive.slow',
+      platform: 'ios',
+      capability: CAPABILITIES.LOCATION_DEVICE,
+    });
+    const elapsed = Date.now() - tStart;
+    assert.equal(timedOut.reason, 'prompt_timeout');
+    assert.ok(elapsed >= 350 && elapsed < 2400, `interactive timeout must be ~400ms (got ${elapsed}ms)`);
+
+    // Source goes inactive / unregistered -> back to headless
+    live = false;
+    assert.equal(broker.hasInteractivePromptConsumer(), false);
+    live = true;
+    unregister();
+    assert.equal(broker.hasInteractivePromptConsumer(), false);
+
+    // An explicit constructor promptTimeoutMs always wins over the interactive default
+    const explicitBroker = new PermissionBroker({ eventBus: bus, promptTimeoutMs: 30, interactivePromptTimeoutMs: 5000 });
+    explicitBroker.registerInteractiveSource(() => true);
+    const eStart = Date.now();
+    const explicitRes = await explicitBroker.checkPermission({
+      appId: 'app.explicit',
+      platform: 'macos',
+      capability: CAPABILITIES.NOTIFICATIONS_POST,
+    });
+    assert.equal(explicitRes.reason, 'prompt_timeout');
+    assert.ok(Date.now() - eStart < 1000, 'explicit promptTimeoutMs must override interactive timeout');
+  });
 });
 
 // ============================================================================

@@ -122,6 +122,7 @@ export class ServiceManager {
       _crashPromise: null,
       _startPromise: null,
       _stopping: false,
+      _consecutiveManualRestartFailures: 0,
     };
 
     this._services.set(name, record);
@@ -355,6 +356,7 @@ export class ServiceManager {
         svc.state = SERVICE_STATES.RUNNING;
         svc.startedAt = Date.now();
         svc.lastError = null;
+        svc._consecutiveManualRestartFailures = 0;
         this._log('info', 'services', `Service "${svc.name}" started`);
         this._eventBus?.emit('service:started', { name: svc.name, startedAt: svc.startedAt });
         return this._snapshot(svc);
@@ -418,11 +420,20 @@ export class ServiceManager {
 
   async stop(name) {
     const svc = this._requireService(name);
+    svc._consecutiveManualRestartFailures = 0;
     return (await this._stopInternal(svc)).snapshot;
   }
 
   async restart(name) {
     const svc = this._requireService(name);
+    if (svc.state === SERVICE_STATES.FAILED && svc._consecutiveManualRestartFailures >= svc.maxRestarts) {
+      const err = new KernelError(
+        `Service "${svc.name}" exhausted maxRestarts (${svc.maxRestarts})`,
+        { code: ERROR_CODES.E_SERVICE_START }
+      );
+      svc.lastError = err.message;
+      throw err;
+    }
     const { stopGen } = await this._stopInternal(svc);
     if (svc._lifecycleGen !== stopGen) {
       return this._snapshot(svc);
@@ -431,7 +442,13 @@ export class ServiceManager {
     svc.backoffHistory = [];
     svc.lastRestartAt = Date.now();
     svc.totalRestarts += 1;
-    const status = await this.start(name);
+    let status;
+    try {
+      status = await this.start(name);
+    } catch (err) {
+      svc._consecutiveManualRestartFailures += 1;
+      throw err;
+    }
     if (status.state === SERVICE_STATES.RUNNING) {
       this._eventBus?.emit('service:restarted', {
         name: svc.name,

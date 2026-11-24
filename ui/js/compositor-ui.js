@@ -261,6 +261,19 @@ export class CompositorUI {
 
   focusWindow(windowId) {
     if (!windowId) return;
+    const entry = this._windows.get(windowId);
+    if (entry) {
+      let maxZ = 1;
+      for (const e of this._windows.values()) {
+        const z = Number(e.data?.zIndex) || 1;
+        if (z > maxZ) maxZ = z;
+      }
+      const nextZ = Math.max(Number(entry.data?.zIndex) || 1, maxZ + 1);
+      entry.data.zIndex = nextZ;
+      entry.el.style.zIndex = String(10 + nextZ);
+      this._focusedWindowId = windowId;
+      this._syncFocusFlags();
+    }
     this._client?.focusWindow(windowId).catch(() => {});
   }
 
@@ -334,6 +347,7 @@ export class CompositorUI {
     }
 
     this._applyWindowAttributes(entry);
+    entry.el.style.zIndex = String(10 + (Number(entry.data.zIndex) || 1));
     if (!entry.isDragging && !entry.isResizing) {
       this._applyWindowGeometry(entry);
     }

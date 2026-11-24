@@ -890,16 +890,23 @@ export class AndroidFrameworkBridge {
         }
         this._permAuditedDecisions.set(decisionKey, priorCount + 1);
         const auditContext = sanitizePermissionContext(context);
+        const hasInteractivePrompt =
+          typeof permissions.hasInteractivePromptConsumer === 'function'
+            ? permissions.hasInteractivePromptConsumer()
+            : typeof permissions._promptHandler === 'function';
         try {
-          const p = permissions.checkPermission({
+          const req = {
             appId: this.packageName,
             pid: this.pcb?.pid ?? null,
             platform: 'android',
             capability: resolvedCap,
             nativePermission: nativePermission ? capString(nativePermission, 256) : null,
             context: auditContext,
-            timeoutMs: 0,
-          });
+          };
+          if (!hasInteractivePrompt) {
+            req.timeoutMs = 0;
+          }
+          const p = permissions.checkPermission(req);
           if (p && typeof p.catch === 'function') {
             p.catch((err) => {
               this._recordInternalLog('W', 'PermissionBroker', `Audit error ignored: ${err?.message ?? err}`);

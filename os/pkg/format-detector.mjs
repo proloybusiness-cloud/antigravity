@@ -462,14 +462,15 @@ function detectZipContainer(bytes, opts) {
   }
 
   // 7e. OmniOS Universal .uapp
-  if (names.includes('omnios.manifest.json')) {
+  const hasWasm = names.some((n) => n.toLowerCase().endsWith('.wasm'));
+  if (names.includes('omnios.manifest.json') || (names.includes('manifest.json') && hasWasm)) {
     return {
       match: {
         format: PACKAGE_FORMATS.UNIVERSAL_UAPP,
         platform: 'universal',
         details: {
           entryCount: names.length,
-          hasWasm: names.some((n) => n.toLowerCase().endsWith('.wasm')),
+          hasWasm,
           isZip64: index.isZip64,
         },
       },

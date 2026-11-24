@@ -377,6 +377,8 @@ const MIN_AUDIT_BIGINT_NEG = -MAX_AUDIT_BIGINT_ABS;
 const MAX_DISPLAY_BIGINT_ABS = 1n << 4096n;
 const MIN_DISPLAY_BIGINT_NEG = -MAX_DISPLAY_BIGINT_ABS;
 const MAX_TIMEOUT_MS = 2_147_483_647;
+const DEFAULT_HEADLESS_PROMPT_TIMEOUT_MS = 2500;
+const DEFAULT_INTERACTIVE_PROMPT_TIMEOUT_MS = 15000;
 const SYMBOL_DESCRIPTION_GET =
   Object.getOwnPropertyDescriptor(Symbol.prototype, 'description')?.get ?? null;
 
@@ -860,7 +862,9 @@ export class PermissionBroker {
     let defaultPolicies = {};
     let policyOverride = null;
     let promptHandler = null;
-    let promptTimeoutMs = 30000;
+    let promptTimeoutMs = DEFAULT_HEADLESS_PROMPT_TIMEOUT_MS;
+    let hasExplicitPromptTimeout = false;
+    let interactivePromptTimeoutMs = DEFAULT_INTERACTIVE_PROMPT_TIMEOUT_MS;
 
     if (opts !== null && opts !== undefined) {
       if (typeof opts !== 'object') {
@@ -877,7 +881,13 @@ export class PermissionBroker {
         if (opts.defaultPolicies !== undefined) defaultPolicies = opts.defaultPolicies;
         if (opts.policyOverride !== undefined) policyOverride = opts.policyOverride;
         if (opts.promptHandler !== undefined) promptHandler = opts.promptHandler;
-        if (opts.promptTimeoutMs !== undefined) promptTimeoutMs = opts.promptTimeoutMs;
+        if (opts.promptTimeoutMs !== undefined) {
+          promptTimeoutMs = opts.promptTimeoutMs;
+          hasExplicitPromptTimeout = true;
+        }
+        if (opts.interactivePromptTimeoutMs !== undefined) {
+          interactivePromptTimeoutMs = opts.interactivePromptTimeoutMs;
+        }
       } catch {
         throw new SecurityError('Unreadable PermissionBroker constructor options', {
           code: ERROR_CODES.EINVAL,
@@ -976,7 +986,19 @@ export class PermissionBroker {
         code: ERROR_CODES.EINVAL,
       });
     }
+    this._hasExplicitPromptTimeout = hasExplicitPromptTimeout;
     this._promptTimeoutMs = Math.min(promptTimeoutMs, MAX_TIMEOUT_MS);
+    if (
+      typeof interactivePromptTimeoutMs !== 'number' ||
+      !Number.isFinite(interactivePromptTimeoutMs) ||
+      interactivePromptTimeoutMs < 0
+    ) {
+      throw new SecurityError('interactivePromptTimeoutMs must be a non-negative finite number', {
+        code: ERROR_CODES.EINVAL,
+      });
+    }
+    this._interactivePromptTimeoutMs = Math.min(interactivePromptTimeoutMs, MAX_TIMEOUT_MS);
+    this._interactiveSources = new Set();
 
     this._pendingPrompts = new Map();
     this._promptSeq = 0;
@@ -1137,6 +1159,7 @@ export class PermissionBroker {
     assertValidCapability(capability);
     assertValidState(state);
     let source = 'user';
+    let auditGrant = false;
     if (opts !== null && opts !== undefined) {
       if (typeof opts !== 'object') {
         throw new SecurityError('Invalid setGrant options', { code: ERROR_CODES.EINVAL });
@@ -1144,6 +1167,9 @@ export class PermissionBroker {
       try {
         if (opts.source !== undefined) {
           source = opts.source;
+        }
+        if (opts.audit !== undefined) {
+          auditGrant = Boolean(opts.audit);
         }
       } catch {
         throw new SecurityError('Unreadable setGrant options', { code: ERROR_CODES.EINVAL });
@@ -1173,6 +1199,19 @@ export class PermissionBroker {
     });
 
     const record = { appId, capability, state, source: cleanSource, updatedAt };
+    if (auditGrant) {
+      this._writeAudit({
+        appId,
+        pid: null,
+        platform: 'system',
+        capability,
+        nativePermission: null,
+        policy: state,
+        granted: state === PERMISSION_STATES.ALLOW,
+        reason: `grant_updated:${cleanSource}`,
+        context: { source: cleanSource, state },
+      });
+    }
     this._emit('security:grant_changed', { ...record });
     return record;
   }
@@ -1272,6 +1311,30 @@ export class PermissionBroker {
       });
     }
     this._promptHandler = fn;
+  }
+
+  registerInteractiveSource(predicate) {
+    if (typeof predicate !== 'function') {
+      throw new SecurityError('Interactive source predicate must be a function', {
+        code: ERROR_CODES.EINVAL,
+      });
+    }
+    this._interactiveSources.add(predicate);
+    return () => {
+      this._interactiveSources.delete(predicate);
+    };
+  }
+
+  hasInteractivePromptConsumer() {
+    if (typeof this._promptHandler === 'function') return true;
+    for (const pred of this._interactiveSources) {
+      try {
+        if (pred()) return true;
+      } catch {
+        // Ignore predicate errors; fail closed as non-interactive.
+      }
+    }
+    return false;
   }
 
   // ---- Audit Logging ----
@@ -1561,7 +1624,14 @@ export class PermissionBroker {
       }
     }
 
-    const rawTimeoutMs = timeoutMs === undefined ? this._promptTimeoutMs : timeoutMs;
+    let rawTimeoutMs;
+    if (timeoutMs !== undefined) {
+      rawTimeoutMs = timeoutMs;
+    } else if (!this._hasExplicitPromptTimeout && this.hasInteractivePromptConsumer()) {
+      rawTimeoutMs = this._interactivePromptTimeoutMs;
+    } else {
+      rawTimeoutMs = this._promptTimeoutMs;
+    }
     if (
       typeof rawTimeoutMs !== 'number' ||
       !Number.isFinite(rawTimeoutMs) ||

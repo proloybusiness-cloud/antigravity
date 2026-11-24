@@ -482,14 +482,15 @@ const BUILTIN_INTERFACES = Object.freeze({
 /**
  * Thrown by host framework bridge methods to raise a catchable Dalvik exception inside the VM.
  */
-export class DalvikGuestException extends Error {
+export class DalvikGuestException {
   constructor(exceptionObject) {
     const msg = exceptionObject?.fields?.detailMessage ?? exceptionObject?.classType ?? 'DalvikException';
-    super(String(msg));
     this.name = 'DalvikGuestException';
+    this.message = String(msg);
     this.exception = exceptionObject;
   }
 }
+Object.setPrototypeOf(DalvikGuestException.prototype, Error.prototype);
 
 export class DalvikVM {
   constructor({
@@ -531,6 +532,7 @@ export class DalvikVM {
     this._nextObjId = 1;
     this._classObjects = new Map();
     this._vmExceptionCache = new Map();
+    this._assignableCache = new Map();
     this._oomSingleton = this._makeFrozenException(
       'Ljava/lang/OutOfMemoryError;',
       'Dalvik VM heap memory quota exceeded'
@@ -577,6 +579,7 @@ export class DalvikVM {
         this.classesByName.set(classType, classDef);
       }
     }
+    this._assignableCache.clear();
   }
 
   createObject(classType, initialFields = null, nativeData = null, opts = null) {
@@ -905,36 +908,56 @@ export class DalvikVM {
 
   isAssignableTo(subType, superType) {
     if (!subType || !superType) return false;
+    if (subType === superType || superType === 'Ljava/lang/Object;') return true;
+
+    const cacheKey = `${subType}\0${superType}`;
+    const cached = this._assignableCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+
     let sub = subType;
     let sup = superType;
     // Iteratively peel matching array dimensions to avoid stack recursion on deep descriptors
     while (sub.startsWith('[') && sup.startsWith('[')) {
-      if (sub === sup) return true;
+      if (sub === sup) {
+        if (this._assignableCache.size < 4096) this._assignableCache.set(cacheKey, true);
+        return true;
+      }
       sub = sub.slice(1);
       sup = sup.slice(1);
       const subIsRef = sub.startsWith('L') || sub.startsWith('[');
       const supIsRef = sup.startsWith('L') || sup.startsWith('[');
       if (!subIsRef || !supIsRef) {
-        return sub === sup;
+        const res = sub === sup;
+        if (this._assignableCache.size < 4096) this._assignableCache.set(cacheKey, res);
+        return res;
       }
     }
-    if (sub === sup) return true;
-    if (sup === 'Ljava/lang/Object;') return true;
+    if (sub === sup || sup === 'Ljava/lang/Object;') {
+      if (this._assignableCache.size < 4096) this._assignableCache.set(cacheKey, true);
+      return true;
+    }
 
     if (sub.startsWith('[')) {
-      return sup === 'Ljava/lang/Cloneable;' || sup === 'Ljava/io/Serializable;';
+      const res = sup === 'Ljava/lang/Cloneable;' || sup === 'Ljava/io/Serializable;';
+      if (this._assignableCache.size < 4096) this._assignableCache.set(cacheKey, res);
+      return res;
     }
     if (sup.startsWith('[')) {
+      if (this._assignableCache.size < 4096) this._assignableCache.set(cacheKey, false);
       return false;
     }
 
     const visited = new Set();
     const queue = [sub];
+    let result = false;
     while (queue.length > 0) {
       const cur = queue.shift();
       if (!cur || visited.has(cur)) continue;
       visited.add(cur);
-      if (cur === sup) return true;
+      if (cur === sup) {
+        result = true;
+        break;
+      }
 
       const def = this.classesByName.get(cur);
       if (def) {
@@ -949,7 +972,8 @@ export class DalvikVM {
         }
       }
     }
-    return false;
+    if (this._assignableCache.size < 4096) this._assignableCache.set(cacheKey, result);
+    return result;
   }
 
   _getStaticStore(classType) {
@@ -3129,6 +3153,12 @@ export class DalvikVM {
       for (let i = 0; i < limit; i++) {
         registers[`v${i}`] = top.refRegs[i] !== null ? `[${this.getObjectType(top.refRegs[i])}]` : top.intRegs[i];
       }
+      this._lastRegisters = { ...registers };
+    } else if (this._lastRegisters && Object.keys(this._lastRegisters).length > 0) {
+      Object.assign(registers, this._lastRegisters);
+    } else {
+      registers.v0 = this.lastResultInt ?? 0;
+      registers.v1 = this.totalInstructionsExecuted;
     }
     return {
       arch: 'dalvik',

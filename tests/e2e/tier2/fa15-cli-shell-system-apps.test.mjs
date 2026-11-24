@@ -124,8 +124,10 @@ function normalizeAppEntries(source, { fromInstalled = false } = {}) {
     for (const item of source) add(item);
   } else if (typeof source === 'object') {
     const arr = asArray(source, ['packages', 'apps', 'catalog', 'items', 'data', 'entries']);
-    if (arr.length > 0) {
+    const sysArr = asArray(source, ['systemApps']);
+    if (arr.length > 0 || sysArr.length > 0) {
       for (const item of arr) add(item);
+      for (const item of sysArr) add(item);
     } else {
       for (const [k, v] of Object.entries(source)) add(v, k);
     }
