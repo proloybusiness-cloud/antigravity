@@ -54,13 +54,28 @@ OMNIOS_LITE=1 docker compose up -d
 
 Health endpoints: `GET /api/health` and `GET /api/v1/health`.
 
+## Bootable Live ISO (VMware Workstation / Potato PC USB)
+
+Build a hybrid **BIOS + UEFI** x86_64 Live ISO (`dist/omnios-live-x86_64.iso` + `.sha256`) that boots straight into the fullscreen OmniOS desktop kiosk (or ultra-low-RAM headless CLI mode) on VMware Workstation, VirtualBox, QEMU/KVM, or a USB stick on low-spec PCs:
+
+```bash
+./scripts/build-iso.sh
+```
+
+- **Auto Potato-PC Lite Mode**: Automatically activates `OMNIOS_LITE=1` (`--lite`, `/?lite=1`, 256 MB V8 heap cap) when `< 2 GB` RAM is detected, plus 4 GRUB boot profiles (`Auto`, `Lite Forced`, `Full Effects`, `Headless CLI`).
+- **VMware Workstation Quick Setup**:
+  1. **Create a New Virtual Machine** -> **Installer disc image file (iso)** -> select `omnios-live-x86_64.iso`.
+  2. Guest OS: **Linux** -> **Other Linux 6.x kernel 64-bit** (BIOS or UEFI both supported).
+  3. Resources: **1 GB–2 GB RAM** (512 MB works in Headless mode), **1–2 vCPU**, **NAT** or **Bridged** networking (no virtual hard disk required for Live boot).
+  4. Power on — OmniOS boots directly into the fullscreen desktop. Press `Ctrl+Alt+F2` for a local shell (`root` / `omnios`), or open `http://<vm-ip>:3777/?lite=1` from your host browser.
+
 ## Testing
 
 ```bash
 # Full OmniOS Unit + Legacy suite (runs sequentially)
 npm test
 
-# E2E Verification Suite (Selftest + Tiers 1–4)
+# E2E Verification Suite (Selftest + Tiers 1–5)
 npm run test:e2e
 
 # Individual tiers
@@ -68,6 +83,7 @@ npm run test:e2e:tier1
 npm run test:e2e:tier2
 npm run test:e2e:tier3
 npm run test:e2e:tier4
+npm run test:e2e:tier5
 ```
 
 ## Legacy Antigravity Flow (Gen-1) Coexistence

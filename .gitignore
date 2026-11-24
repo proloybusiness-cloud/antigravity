@@ -15,3 +15,8 @@ service-account.json
 node_modules/
 logs/
 *.log
+
+# Built ISO / release artifacts
+dist/
+*.iso
+*.iso.sha256
