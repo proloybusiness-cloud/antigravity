@@ -1,0 +1,95 @@
+name: Build & Publish OmniOS Live ISO
+
+on:
+  push:
+    tags:
+      - 'omnios-*-live-iso'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag name (e.g., omnios-v2.0.0-live-iso)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-live-iso:
+    name: Build Hybrid BIOS+UEFI Live ISO (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check available disk space
+        run: df -h
+
+      - name: Build OmniOS Live ISO (Alpine 3.24 + Linux LTS + Node 24 + Xorg/Chromium Kiosk)
+        run: ./scripts/build-iso.sh
+
+      - name: Verify ISO artifacts & SHA-256
+        run: |
+          ls -lh dist/omnios-live-x86_64.iso dist/omnios-live-x86_64.iso.sha256
+          (cd dist && sha256sum -c omnios-live-x86_64.iso.sha256)
+
+      - name: Publish GitHub Release with Live ISO
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          elif [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+          else
+            TAG="omnios-$(date -u +%Y%m%d-%H%M)-live-iso"
+          fi
+
+          SHA="$(awk '{print $1}' dist/omnios-live-x86_64.iso.sha256)"
+          SIZE_MB="$(du -m dist/omnios-live-x86_64.iso | awk '{print $1}')"
+
+          cat > /tmp/release-notes.md <<EOF
+          ## OmniOS Bootable Live ISO (\`x86_64\` Hybrid BIOS + UEFI)
+
+          Boot **OmniOS** directly in **VMware Workstation**, VirtualBox, QEMU/KVM, or from a USB stick on low-spec ("potato") PCs — no installation or virtual disk required.
+
+          ### Downloads
+          - **\`omnios-live-x86_64.iso\`** (~${SIZE_MB} MB) — Hybrid El-Torito BIOS + UEFI bootable live image
+          - **\`omnios-live-x86_64.iso.sha256\`** — SHA-256: \`${SHA}\`
+
+          ### What's Inside
+          - **Base OS**: Lean Alpine Linux 3.24 + Linux LTS kernel + SquashFS/OverlayFS RAM live root
+          - **Runtime**: Node.js 24 with native \`node:sqlite\` + full zero-dependency OmniOS (\`M1\`–\`M7\`)
+          - **Desktop Kiosk**: Xorg (\`vmware\` / \`modesetting\` / \`fbdev\` / \`vesa\`) + \`ratpoison\` borderless fullscreen WM + Chromium (software rendering enabled for 100% VMware & legacy GPU compatibility)
+          - **VMware Integration**: \`open-vm-tools\` (\`vmtoolsd\` + \`vmware-user\`), \`vmw_pvscsi\`, \`mptspi\`/\`mptsas\`/\`mpt3sas\`, \`vmwgfx\`, \`xf86-input-vmmouse\`
+          - **Potato-PC Auto-Lite Mode**: Automatically enables \`OMNIOS_LITE=1\` (\`--lite\`, \`/?lite=1\`, 256 MB V8 heap cap) when \`< 2 GB\` RAM is detected
+
+          ### GRUB Boot Menu Profiles
+          1. **OmniOS Live (Auto — Potato-PC Lite on <2GB RAM)** *(default)*
+          2. **OmniOS Live (Potato-PC Lite Mode Forced — Low RAM / No Blur)**
+          3. **OmniOS Live (Full Desktop Visual Effects)**
+          4. **OmniOS Headless Server + CLI Console (Ultra-Low RAM / ~256MB)**
+
+          ### VMware Workstation Quick Start
+          1. **File -> New Virtual Machine -> Typical -> Installer disc image file (iso)** -> select \`omnios-live-x86_64.iso\`.
+          2. **Guest OS**: **Linux** -> **Other Linux 6.x kernel 64-bit** (BIOS or UEFI both supported).
+          3. **Resources**: **1 GB–2 GB RAM** (512 MB works in Headless mode), **1–2 vCPU**, **NAT** or **Bridged** networking (virtual hard disk optional).
+          4. **Power on**: Boots straight into the fullscreen OmniOS desktop.
+             - Press **\`Ctrl+Alt+F2\`** anytime for a local root/CLI shell (\`root\` / \`omnios\`, \`omnios-cli\` on \`PATH\`).
+             - Also accessible from your host browser at **\`http://<vm-ip>:3777/?lite=1\`**.
+          EOF
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" \
+              dist/omnios-live-x86_64.iso \
+              dist/omnios-live-x86_64.iso.sha256 \
+              --clobber
+            gh release edit "${TAG}" --notes-file /tmp/release-notes.md
+          else
+            gh release create "${TAG}" \
+              --target "${GITHUB_SHA}" \
+              --title "OmniOS Live ISO (${TAG})" \
+              --notes-file /tmp/release-notes.md \
+              dist/omnios-live-x86_64.iso \
+              dist/omnios-live-x86_64.iso.sha256
+          fi
