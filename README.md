@@ -54,20 +54,54 @@ OMNIOS_LITE=1 docker compose up -d
 
 Health endpoints: `GET /api/health` and `GET /api/v1/health`.
 
-## Bootable Live ISO (VMware Workstation / Potato PC USB)
+## Bootable Live ISO (VMware Workstation / Daily-Driver USB)
 
-Build a hybrid **BIOS + UEFI** x86_64 Live ISO (`dist/omnios-live-x86_64.iso` + `.sha256`) that boots straight into the fullscreen OmniOS desktop kiosk (or ultra-low-RAM headless CLI mode) on VMware Workstation, VirtualBox, QEMU/KVM, or a USB stick on low-spec PCs:
+Download pre-built hybrid **BIOS + UEFI** `x86_64` Live ISOs from GitHub Releases:
+
+- **OmniOS 2.0 NextGen Pro** (`~1.7–1.85 GiB` / `~1.8–1.9 GB`, full daily-driver KDE Plasma 6.6 Wayland desktop + real open-source apps + Liquid Glass / Windows 12 Fluent themes):
+  - Release page: [`omnios-v2.0-pro-iso`](https://github.com/proloybusiness-cloud/antigravity/releases/tag/omnios-v2.0-pro-iso) (`omnios-v2-pro-x86_64.iso` + `omnios-v2-pro-x86_64.iso.sha256`)
+- **OmniOS Potato-PC Lite** (`~708 MB`, runs on `< 1 GB` RAM):
+  - Release page: [`omnios-v2.0.0-live-iso`](https://github.com/proloybusiness-cloud/antigravity/releases/tag/omnios-v2.0.0-live-iso) (`omnios-live-x86_64.iso` + `omnios-live-x86_64.iso.sha256`)
+
+Verify the downloaded ISO checksum:
 
 ```bash
-./scripts/build-iso.sh
+# Linux
+sha256sum -c omnios-v2-pro-x86_64.iso.sha256
+
+# macOS
+shasum -a 256 -c omnios-v2-pro-x86_64.iso.sha256
 ```
 
-- **Auto Potato-PC Lite Mode**: Automatically activates `OMNIOS_LITE=1` (`--lite`, `/?lite=1`, 256 MB V8 heap cap) when `< 2 GB` RAM is detected, plus 4 GRUB boot profiles (`Auto`, `Lite Forced`, `Full Effects`, `Headless CLI`).
-- **VMware Workstation Quick Setup**:
-  1. **Create a New Virtual Machine** -> **Installer disc image file (iso)** -> select `omnios-live-x86_64.iso`.
-  2. Guest OS: **Linux** -> **Other Linux 6.x kernel 64-bit** (BIOS or UEFI both supported).
-  3. Resources: **1 GB–2 GB RAM** (512 MB works in Headless mode), **1–2 vCPU**, **NAT** or **Bridged** networking (no virtual hard disk required for Live boot).
-  4. Power on — OmniOS boots directly into the fullscreen desktop. Press `Ctrl+Alt+F2` for a local shell (`root` / `omnios`), or open `http://<vm-ip>:3777/?lite=1` from your host browser.
+```powershell
+# Windows PowerShell
+Get-FileHash omnios-v2-pro-x86_64.iso -Algorithm SHA256
+```
+
+Or build either edition locally with Docker:
+
+```bash
+# Default — OmniOS 2.0 NextGen Pro Daily-Driver Desktop ISO (~1.7–1.85 GiB / ~1.8–1.9 GB)
+# KDE Plasma 6.6 Wayland + Customized MacTahoe/Fluent 12 Liquid Glass Themes +
+# Firefox, LibreOffice, VLC, GIMP, Kate, Dolphin, Konsole (Zsh/Fastfetch), Wine 11,
+# Discover + Flathub, PipeWire Audio, NetworkManager, Open-VM-Tools & OmniOS Hub
+./scripts/build-iso.sh --edition pro
+
+# Potato-PC Lite Kiosk Edition (~708 MB, runs on < 1 GB RAM)
+./scripts/build-iso.sh --edition lite
+```
+
+**GRUB2 Boot Profiles (BIOS & UEFI)**:
+1. **Liquid Glass Desktop (Default)** — macOS 29 + Windows 12 dark Liquid Glass fusion (`omnios.mode=full`)
+2. **Windows 12 Fluent Acrylic Mode** — centered floating acrylic taskbar preset (`omnios.preset=fluent12`)
+3. **Safe Software Graphics** — compatibility mode forcing Mesa `llvmpipe` (`omnios.safe_gfx=1`)
+4. **Server + CLI Console** — headless low-RAM mode starting OmniOS Hub & CLI without GUI (`omnios.mode=headless`)
+
+**OmniOS 2.0 NextGen Pro in VMware Workstation**:
+1. **File -> New Virtual Machine -> Typical -> Installer disc image file (iso)** -> select `omnios-v2-pro-x86_64.iso`.
+2. **Guest OS**: **Linux** -> **Other Linux 6.x kernel 64-bit** (both BIOS and UEFI firmware are supported).
+3. **Resources**: **4 GB RAM** (2 GB minimum), **2+ vCPUs**, **3D graphics acceleration ON** recommended for silky 60fps KWin glass blur (auto-falls back to Mesa `llvmpipe` if disabled), **NAT** or **Bridged** networking (auto-connects `eth0` via NetworkManager DHCP).
+4. **Power on**: Auto-logs directly into **OmniOS 2.0 NextGen Pro** (user: `omnios` / password: `omnios`, passwordless `sudo`; `Ctrl+Alt+F3` login TTY, `Ctrl+Alt+F4` root shell). Switch anytime between **OmniOS Liquid Glass Dark (macOS 29)**, **OmniOS Windows 12 Fluent**, and **OmniOS Silk Glass Light** via **OmniOS Theme Studio** on the dock, or access **OmniOS Hub** from your host browser at `http://<vm-ip>:3777/`.
 
 ## Testing
 

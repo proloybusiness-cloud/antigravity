@@ -5,7 +5,7 @@
    ========================================================================== */
 
 #omni-shell[data-shell-mode="unified"] {
-  --bar-top-height: 40px;
+  --bar-top-height: 54px;
   --bar-bottom-height: 78px;
 }
 
@@ -37,25 +37,49 @@
   display: none;
 }
 
-/* Hybrid Flagship Dock & Snap Polish */
-#omni-shell[data-shell-mode="unified"] .floating-dock {
-  bottom: 12px;
-  padding: 8px 14px;
-  border-radius: 22px;
+/* Hybrid Flagship Floating Top Bar & Liquid Glass Dock */
+#omni-shell[data-shell-mode="unified"] #top-bar {
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
   box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.44),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    0 12px 32px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+#omni-shell[data-shell-mode="unified"][data-theme="light"] #top-bar {
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.90);
+}
+
+#omni-shell[data-shell-mode="unified"] .floating-dock {
+  bottom: 14px;
+  padding: 9px 16px;
+  border-radius: 24px;
+  border: 1px solid var(--border-subtle);
+  box-shadow:
+    0 22px 56px rgba(0, 0, 0, 0.50),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 #omni-shell[data-shell-mode="unified"][data-theme="light"] .floating-dock {
   box-shadow:
-    0 16px 40px rgba(15, 23, 42, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    0 18px 44px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+#omni-shell[data-shell-mode="unified"] .dock-item,
+#omni-shell[data-shell-mode="unified"] .floating-dock button {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background 140ms ease;
 }
 
 #omni-shell[data-shell-mode="unified"] .dock-item:hover,
 #omni-shell[data-shell-mode="unified"] .floating-dock button:hover {
-  transform: translateY(-7px) scale(1.14);
+  transform: translateY(-9px) scale(1.18);
 }
 
 #omni-shell[data-shell-mode="unified"] .win-btn-snap {

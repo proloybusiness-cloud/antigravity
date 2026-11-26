@@ -769,8 +769,13 @@ export class ShellModeController {
 
     dropdown.replaceChildren(frag);
     const rect = triggerEl.getBoundingClientRect();
+    const topBar = (typeof document !== 'undefined') ? document.getElementById('top-bar') : null;
+    const topBarRect = topBar ? topBar.getBoundingClientRect() : null;
+    const minTop = topBarRect && topBarRect.bottom > 0
+      ? Math.round(topBarRect.bottom + 4)
+      : Math.round(rect.bottom + 2);
     dropdown.style.left = `${Math.max(4, Math.round(rect.left))}px`;
-    dropdown.style.top = `${Math.round(rect.bottom + 2)}px`;
+    dropdown.style.top = `${Math.max(Math.round(rect.bottom + 2), minTop)}px`;
     dropdown.setAttribute('data-open', 'true');
     this._renderGlobalMenuBar();
   }
