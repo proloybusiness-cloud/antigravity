@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # OmniOS Bootable Live ISO Builder (x86_64 Hybrid BIOS + UEFI)
 # Supports both editions:
-#   --edition pro   (Default) OmniOS 2.0 NextGen Pro Daily Driver
+#   --edition pro   (Default) OmniOS 2.1 NextGen Pro Daily Driver
 #                   KDE Plasma 6.6 + MacTahoe/Fluent 12 Liquid Glass + Firefox,
-#                   LibreOffice, VLC, GIMP, Kate, Dolphin, Wine 11, Flatpak, PipeWire, OmniOS Hub
+#                   LibreOffice, VLC, GIMP, Kate, Dolphin, Wine 11, Flatpak, PipeWire,
+#                   VirtualBox Guest Additions, Open-VM-Tools, Optical/USB Auto-Mount & OmniOS Hub
 #   --edition lite  OmniOS Potato-PC Lite Kiosk Edition (~708 MB, runs on <1GB RAM)
 #
 # Usage:
@@ -113,6 +114,12 @@ docker run --rm \
   /bin/sh "${INNER_SCRIPT}"
 
 if [ -f "${OUT_ISO}" ]; then
+  SIZE_BYTES="$(stat -c%s "${OUT_ISO}")"
+  echo "[OmniOS ISO] Size: ${SIZE_BYTES} bytes"
+  if [ "${SIZE_BYTES}" -ge 2147483648 ]; then
+    echo "[ERROR] ISO size (${SIZE_BYTES} bytes) meets or exceeds GitHub Releases 2.0 GiB asset limit (2147483648 bytes)." >&2
+    exit 1
+  fi
   (cd "${OUT_DIR}" && sha256sum "${OUT_NAME}" > "${OUT_NAME}.sha256")
   echo "[OmniOS ISO] Built successfully:"
   ls -lh "${OUT_ISO}" "${OUT_ISO}.sha256"
